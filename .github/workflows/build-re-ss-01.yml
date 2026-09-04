@@ -1,0 +1,103 @@
+name: Build JDCloud RE-SS-01
+
+"on":
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPOSITORY: https://github.com/LiBwrt/LibWrt.git
+  SOURCE_BRANCH: 25.12-nss
+  CONFIG_FILE: configs/jdcloud-re-ss-01.config
+  TZ: Asia/Taipei
+
+jobs:
+  build:
+    name: Build firmware
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Check out builder configuration
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext \
+            gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 \
+            libelf-dev libfuse-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev \
+            libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev \
+            libssl-dev libtool lrzsz genisoimage msmtp nano ninja-build p7zip p7zip-full \
+            patch pkgconf python3 python3-pip python3-pyelftools qemu-utils rsync scons \
+            squashfs-tools subversion swig texinfo uglifyjs unzip vim wget xmlto xxd zlib1g-dev
+
+      - name: Clone current LibWrt source
+        id: source
+        run: |
+          git clone --depth 1 --single-branch \
+            --branch "$SOURCE_BRANCH" "$SOURCE_REPOSITORY" openwrt
+          cd openwrt
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Install feeds
+        working-directory: openwrt
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Load RE-SS-01 configuration
+        working-directory: openwrt
+        run: |
+          cp "$GITHUB_WORKSPACE/$CONFIG_FILE" .config
+          make defconfig
+          ./scripts/diffconfig.sh
+
+      - name: Download source packages
+        run: |
+          make -C openwrt download -j"$(nproc)" || make -C openwrt download -j1 V=s
+          find openwrt/dl -type f -size -1024c -print -delete
+
+      - name: Compile firmware
+        run: |
+          make -C openwrt -j"$(nproc)" || make -C openwrt -j1 V=s
+
+      - name: Collect RE-SS-01 firmware
+        run: |
+          target_dir="openwrt/bin/targets/qualcommax/ipq60xx"
+          test -d "$target_dir"
+          mkdir -p output
+          find "$target_dir" -maxdepth 1 -type f \
+            \( -name '*jdcloud_re-ss-01*' -o -name 'profiles.json' \
+               -o -name 'sha256sums' -o -name '*.buildinfo' \) \
+            -exec cp {} output/ \;
+          test -n "$(find output -maxdepth 1 -type f -name '*jdcloud_re-ss-01*' -print -quit)"
+          cp openwrt/.config output/build.config
+          sha256sum output/* > output/sha256sums-local
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jdcloud-re-ss-01-${{ github.run_number }}
+          path: output/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+        run: |
+          release_tag="re-ss-01-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          gh release create "$release_tag" output/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "JDCloud RE-SS-01 build ${GITHUB_RUN_NUMBER}" \
+            --notes "Source: LiBwrt/LibWrt ${SOURCE_BRANCH} (${SOURCE_COMMIT})" \
+            --latest=false

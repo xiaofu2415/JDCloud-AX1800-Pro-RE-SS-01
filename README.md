@@ -1,82 +1,41 @@
-<div align="center">
-<img width="768" src="https://github.com/breeze303/ipq60xx-6.1/blob/main/include/logo.png"/>
-<h1>OpenWrt — IPQ60XX云编译</h1>
+# JDCloud RE-SS-01 OpenWrt 云编译
 
+这个仓库只负责通过 GitHub Actions 编译京东云无线宝 AX1800 Pro（机身型号 `RE-SS-01`）固件。
 
-## 项目说明 [![](https://img.shields.io/badge/-项目基本介绍-FFFFFF.svg)](#项目说明-)
-- 固件默认管理地址：`192.168.1.1` 默认用户：`root` 默认密码：`password`
-- 源码来源：https://github.com/breeze303/ipq60xx-6.1.git
-- 源码来源：https://github.com/breeze303/ipq60xx-6.6.git
-- 源码来源：https://github.com/openwrt-dev/openwrt-ipq60xx 感谢大佬
-- 源码来源: https://github.com/JiaY-shi/openwrt/tree/ipq60xx-devel_nss 感谢大佬
-- 云编译来源：https://github.com/haiibo/OpenWrt 感谢大佬
+## 编译来源
 
-## 固件下载 [![](https://img.shields.io/badge/-编译状态及下载链接-FFFFFF.svg)](#固件下载-)
-点击下表中 [![](https://img.shields.io/badge/下载-链接-blueviolet.svg?style=flat&logo=hack-the-box)](https://github.com/haiibo/OpenWrt/releases) 即可跳转到该设备固件下载页面
-| 平台+设备名称 | 固件编译状态 | 配置文件 | 固件下载 |
-| :-------------: | :-------------: | :-------------: | :-------------: |
-| [![](https://img.shields.io/badge/6.1-WIFI-32C955.svg?logo=openwrt)](https://github.com/breeze303/OpenWrt/blob/main/.github/workflows/IPQ60XX-6.1-WIFI.yml) | [![](https://github.com/breeze303/OpenWrt/actions/workflows/IPQ60XX-6.1-WIFI.yml/badge.svg)](https://github.com/breeze303/OpenWrt/actions/workflows/IPQ60XX-6.1-WIFI.yml) | [![](https://img.shields.io/badge/编译-配置-orange.svg?logo=apache-spark)](https://github.com/breeze303/OpenWrt/blob/main/configs/ipq60xx-6.1-wifi.config) | [![](https://img.shields.io/badge/下载-链接-blueviolet.svg?logo=hack-the-box)](https://github.com/breeze303/OpenWrt/releases/IPQ60XX-6.1-WIFI) |
-| [![](https://img.shields.io/badge/6.1-WIFI(EMMC)-32C955.svg?logo=openwrt)](https://github.com/breeze303/OpenWrt/blob/main/.github/workflows/IPQ60XX-6.1-WIFI(EMMC).yml) | [![](https://github.com/breeze303/OpenWrt/actions/workflows/IPQ60XX-6.1-WIFI(EMMC).yml/badge.svg)](https://github.com/breeze303/OpenWrt/actions/workflows/IPQ60XX-6.1-WIFI(EMMC).yml) | [![](https://img.shields.io/badge/编译-配置-orange.svg?logo=apache-spark)](https://github.com/breeze303/OpenWrt/blob/main/configs/ipq60xx-6.1-wifi(emmc).config) | [![](https://img.shields.io/badge/下载-链接-blueviolet.svg?logo=hack-the-box)](https://github.com/breeze303/OpenWrt/releases/IPQ60XX-6.1-WIFI(EMMC)) |
-| [![](https://img.shields.io/badge/6.6-WIFI-32C955.svg?logo=openwrt)](https://github.com/breeze303/OpenWrt/blob/main/.github/workflows/IPQ60XX-6.6-WIFI.yml) | [![](https://github.com/breeze303/OpenWrt/actions/workflows/IPQ60XX-6.6-WIFI.yml/badge.svg)](https://github.com/breeze303/OpenWrt/actions/workflows/IPQ60XX-6.6-WIFI.yml) | [![](https://img.shields.io/badge/编译-配置-orange.svg?logo=apache-spark)](https://github.com/breeze303/OpenWrt/blob/main/configs/ipq60xx-6.6-wifi.config) | [![](https://img.shields.io/badge/下载-链接-blueviolet.svg?logo=hack-the-box)](https://github.com/breeze303/OpenWrt/releases/IPQ60XX-6.6-WIFI) |
+- 源码：[LiBwrt/LibWrt](https://github.com/LiBwrt/LibWrt)
+- 分支：`25.12-nss`
+- 平台：`qualcommax/ipq60xx`
+- 设备：`jdcloud_re-ss-01`
+- 内核系列：Linux 6.12
 
-## 定制固件 [![](https://img.shields.io/badge/-项目基本编译教程-FFFFFF.svg)](#定制固件-)
-1. 首先要登录 Gihub 账号，然后 Fork 此项目到你自己的 Github 仓库
-2. 修改 `configs` 目录对应文件添加或删除插件，或者上传自己的 `xx.config` 配置文件
-3. 插件对应名称及功能请参考恩山网友帖子：[Applications 添加插件应用说明](https://www.right.com.cn/forum/thread-3682029-1-1.html)
-4. 如需修改默认 IP、添加或删除插件包以及一些其他设置请在 `diy-script.sh` 文件内修改
-5. 添加或修改 `xx.yml` 文件，最后点击 `Actions` 运行要编译的 `workflow` 即可开始编译
-6. 编译大概需要3-5小时，编译完成后在仓库主页 [Releases](https://github.com/haiibo/OpenWrt/releases) 对应 Tag 标签内下载固件
-<details>
-<summary><b>&nbsp;如果你觉得修改 config 文件麻烦，那么你可以点击此处尝试本地提取</b></summary>
+每次运行都会浅克隆该分支的最新提交，实际源码提交号会写入 Release 说明。
 
-1. 首先装好 Linux 系统，推荐 Debian 11 或 Ubuntu LTS
+## 开始编译
 
-2. 安装编译依赖环境
+1. 打开仓库的 **Actions** 页面。
+2. 如果 GitHub 提示工作流尚未启用，先点击启用按钮。
+3. 在左侧选择 **Build JDCloud RE-SS-01**。
+4. 点击 **Run workflow**，选择 `main` 后确认运行。
+5. 等待构建完成，在 **Releases** 或该次运行的 **Artifacts** 下载结果。
 
-   ```bash
-   sudo apt update -y
-   sudo apt full-upgrade -y
-   sudo apt install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-   bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
-   git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev \
-   libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev libtool lrzsz \
-   mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 python3-pyelftools \
-   libpython3-dev qemu-utils rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip \
-   vim wget xmlto xxd zlib1g-dev
-   ```
+无需设置个人访问令牌或仓库 Secret。workflow 使用当前仓库自动提供的 `GITHUB_TOKEN` 发布 Release。
 
-3. 下载源代码，更新 feeds 并安装到本地
+## 文件选择
 
-   ```bash
-   git clone https://github.com/coolsnowwolf/lede
-   cd lede
-   ./scripts/feeds update -a
-   ./scripts/feeds install -a
-   ```
+- 从原厂固件或不同分区布局首次刷入时，不要直接使用 `sysupgrade.bin`。
+- `factory.bin` 与 `sysupgrade.bin` 的使用前提取决于当前 U-Boot 和分区布局。
+- 刷写前必须备份设备特有分区并准备救砖方式；其他 IPQ60xx 机型的固件不能用于 `RE-SS-01`。
 
-4. 复制 diy-script.sh 文件内所有内容到命令行，添加自定义插件和自定义设置
+## 自定义软件包
 
-5. 命令行输入 `make menuconfig` 选择配置，选好配置后导出差异部分到 seed.config 文件
+基础差异配置位于 `configs/jdcloud-re-ss-01.config`。首次应先验证最小配置能稳定生成并启动固件，再逐项增加软件包。
 
-   ```bash
-   make defconfig
-   ./scripts/diffconfig.sh > seed.config
-   ```
+## 本地检查
 
-7. 命令行输入 `cat seed.config` 查看这个文件，也可以用文本编辑器打开
+```bash
+bash tests/test-builder.sh
+```
 
-8. 复制 seed.config 文件内所有内容到 configs 目录对应文件中覆盖就可以了
-
-   **如果看不懂编译界面可以参考 YouTube 视频：[软路由固件 OpenWrt 编译界面设置](https://www.youtube.com/watch?v=jEE_J6-4E3Y&list=WL&index=7)**
-</details>
-
-
-## 特别提示 [![](https://img.shields.io/badge/-个人免责声明-FFFFFF.svg)](#特别提示-)
-
-- **本人不对任何人因使用本固件所遭受的任何理论或实际的损失承担责任！**
-
-- **本固件禁止用于任何商业用途，请务必严格遵守国家互联网使用相关法律规定！**
-
-<a href="#readme">
-<img src="https://img.shields.io/badge/-返回顶部-FFFFFF.svg" title="返回顶部" align="right"/>
-</a>
+该检查会确认 workflow 仅手动触发、上游与分支正确、Release 权限完整，并且配置只选择 `RE-SS-01`。
