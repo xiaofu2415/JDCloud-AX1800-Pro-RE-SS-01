@@ -39,10 +39,24 @@ alignment_index = steps.index(alignment)
 compile_index = steps.index { |step| step["name"] == "Compile firmware" }
 abort "factory alignment must run before compilation" unless alignment_index < compile_index
 
+cache = steps.find { |step| step["uses"] == "actions/cache@v4" }
+abort "missing download and compiler cache" unless cache
+cache_paths = cache.dig("with", "path").lines.map(&:strip).reject(&:empty?)
+abort "cache must contain only downloads and ccache" unless cache_paths == %w[openwrt/dl openwrt/.ccache]
+cache_key = cache.dig("with", "key")
+expected_key = "re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.source.outputs.commit }}-${{ hashFiles(env.CONFIG_FILE) }}"
+abort "cache key must track runner, branch, source and config" unless cache_key == expected_key
+restore_keys = cache.dig("with", "restore-keys").lines.map(&:strip).reject(&:empty?)
+abort "cache must reuse the latest compatible branch entry" unless restore_keys == ["re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-"]
+cache_index = steps.index(cache)
+feeds_index = steps.index { |step| step["name"] == "Install feeds" }
+abort "cache must restore after clone and before feeds" unless cache_index > alignment_index && cache_index < feeds_index
+
 config = File.readlines(config_path, chomp: true)
 selected_devices = config.grep(/^CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_.+=y$/)
 expected_device = "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=y"
 abort "config must select only RE-SS-01" unless selected_devices == [expected_device]
+abort "ccache must be enabled" unless config.include?("CONFIG_CCACHE=y")
 
 workflows = Dir.glob(File.join(repo_root, ".github/workflows/*.{yml,yaml}"))
 abort "legacy workflows still present" unless workflows == [workflow_path]

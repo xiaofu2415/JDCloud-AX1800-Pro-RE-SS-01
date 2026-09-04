@@ -50,6 +50,16 @@ jobs:
       - name: Align RE-SS-01 factory image
         run: bash .github/scripts/fix-re-ss-01-factory.sh openwrt/target/linux/qualcommax/image/ipq60xx.mk
 
+      - name: Restore downloads and compiler cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            openwrt/dl
+            openwrt/.ccache
+          key: re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.source.outputs.commit }}-${{ hashFiles(env.CONFIG_FILE) }}
+          restore-keys: |
+            re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-
+
       - name: Install feeds
         working-directory: openwrt
         run: |
