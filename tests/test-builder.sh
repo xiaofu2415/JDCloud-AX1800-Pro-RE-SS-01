@@ -4,6 +4,8 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 workflow="$repo_root/.github/workflows/build-re-ss-01.yml"
 config="$repo_root/configs/jdcloud-re-ss-01.config"
+factory_aligner="$repo_root/.github/scripts/fix-re-ss-01-factory.sh"
+factory_fixture="$repo_root/tests/fixtures/ipq60xx.mk"
 
 ruby - "$workflow" "$config" "$repo_root" <<'RUBY'
 require "yaml"
@@ -29,6 +31,14 @@ abort "checkout credentials must not persist into upstream build steps" unless c
 load_config = steps.find { |step| step["name"] == "Load RE-SS-01 configuration" }
 abort "configuration must be expanded from the OpenWrt source directory" unless load_config["working-directory"] == "openwrt"
 
+alignment = steps.find { |step| step["name"] == "Align RE-SS-01 factory image" }
+abort "missing RE-SS-01 factory alignment step" unless alignment
+aligner_call = "bash .github/scripts/fix-re-ss-01-factory.sh openwrt/target/linux/qualcommax/image/ipq60xx.mk"
+abort "factory alignment step must patch the cloned source" unless alignment["run"] == aligner_call
+alignment_index = steps.index(alignment)
+compile_index = steps.index { |step| step["name"] == "Compile firmware" }
+abort "factory alignment must run before compilation" unless alignment_index < compile_index
+
 config = File.readlines(config_path, chomp: true)
 selected_devices = config.grep(/^CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_.+=y$/)
 expected_device = "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=y"
@@ -52,3 +62,24 @@ abort "legacy build assets still present: #{present_legacy_paths.join(', ')}" un
 RUBY
 
 echo "builder contract: ok"
+
+fixture_root="$(mktemp -d)"
+trap 'rm -rf "$fixture_root"' EXIT
+cp "$factory_fixture" "$fixture_root/ipq60xx.mk"
+bash "$factory_aligner" "$fixture_root/ipq60xx.mk"
+
+ruby - "$fixture_root/ipq60xx.mk" <<'RUBY'
+path = ARGV.fetch(0)
+source = File.read(path)
+
+device = source[/define Device\/jdcloud_re-ss-01\n.*?^endef$/m]
+abort "RE-SS-01 fixture definition missing" unless device
+expected = "IMAGE/factory.bin := append-kernel | pad-to $$(KERNEL_SIZE) | append-rootfs | pad-rootfs | pad-to 64k"
+abort "RE-SS-01 factory image is not 64 KiB aligned" unless device.include?(expected)
+abort "RE-SS-01 factory image still appends metadata" if device.include?("append-metadata")
+
+neighbor = source[/define Device\/redmi_ax5-jdcloud\n.*?^endef$/m]
+abort "neighbor fixture definition changed" unless neighbor&.include?("append-rootfs | append-metadata")
+RUBY
+
+echo "factory alignment transform: ok"

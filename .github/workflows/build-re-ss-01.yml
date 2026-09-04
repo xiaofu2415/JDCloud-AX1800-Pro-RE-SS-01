@@ -47,6 +47,9 @@ jobs:
           cd openwrt
           echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - name: Align RE-SS-01 factory image
+        run: bash .github/scripts/fix-re-ss-01-factory.sh openwrt/target/linux/qualcommax/image/ipq60xx.mk
+
       - name: Install feeds
         working-directory: openwrt
         run: |
@@ -99,5 +102,5 @@ jobs:
           gh release create "$release_tag" output/* \
             --repo "$GITHUB_REPOSITORY" \
             --title "JDCloud RE-SS-01 build ${GITHUB_RUN_NUMBER}" \
-            --notes "Source: LiBwrt/LibWrt ${SOURCE_BRANCH} (${SOURCE_COMMIT})" \
+            --notes "Source: LiBwrt/LibWrt ${SOURCE_BRANCH} (${SOURCE_COMMIT}). RE-SS-01 factory rootfs padded to 64 KiB for eMMC flashing." \
             --latest=false
