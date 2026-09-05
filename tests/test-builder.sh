@@ -9,6 +9,76 @@ factory_fixture="$repo_root/tests/fixtures/ipq60xx.mk"
 defaults="$repo_root/files/etc/uci-defaults/99-re-ss-01-services"
 required_packages="$repo_root/.github/scripts/required-packages.sh"
 
+ruby - "$repo_root" <<'RUBY'
+repo = ARGV.fetch(0)
+paths = %w[
+  README.md
+  docs/VARIANTS.md
+  docs/BUILD.md
+  docs/FLASHING.md
+  docs/RELEASES.md
+  CHANGELOG.md
+  SECURITY.md
+]
+paths.each do |path|
+  abort "missing documentation: #{path}" unless File.file?(File.join(repo, path))
+end
+
+read = lambda { |path| File.read(File.join(repo, path)) }
+require_text = lambda do |path, text, label|
+  abort "#{path} must document #{label}" unless read.call(path).include?(text)
+end
+require_match = lambda do |path, pattern, label|
+  abort "#{path} must document #{label}" unless read.call(path).match?(pattern)
+end
+
+readme = read.call("README.md")
+abort "README title must be exact" unless readme.lines.first&.chomp == "# 京东云 AX1800 PRO（RE-SS-01）"
+require_text.call("README.md", "https://github.com/xiaofu2415/JDCloud-AX1800-Pro-RE-SS-01", "the renamed repository")
+%w[VARIANTS BUILD FLASHING RELEASES].each do |guide|
+  require_text.call("README.md", "docs/#{guide}.md", "the #{guide} guide link")
+end
+require_text.call("README.md", "SECURITY.md", "the SECURITY guide link")
+require_match.call("README.md", /Argon.{0,40}`1\.0\.0`.{0,40}(稳定|stable)/i, "Argon 1.0.0 as stable")
+require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.1`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.1 as beta")
+
+require_match.call("docs/VARIANTS.md", /QuickStart.{0,40}(首页|落地页)/i, "QuickStart as the iStore landing page")
+require_match.call("docs/VARIANTS.md", /Argon.{0,60}(标准|普通).{0,20}LuCI|标准 LuCI.{0,40}Argon/i, "Argon for standard LuCI pages")
+require_match.call("docs/BUILD.md", /variant.{0,40}(argon|istore)/i, "manual variant choice")
+require_match.call("docs/BUILD.md", /(重建|重新构建).{0,50}(同一|相同).{0,20}(版本|Release).{0,50}(更新|提升|递增).{0,20}版本|版本.{0,50}(更新|提升|递增).{0,50}(重建|重新构建)/i, "a version bump before rebuilding the same release")
+require_match.call("docs/FLASHING.md", /factory.{0,120}sysupgrade|sysupgrade.{0,120}factory/i, "factory and sysupgrade differences")
+require_match.call("docs/FLASHING.md", /SHA-256/i, "SHA-256 verification")
+require_text.call("docs/FLASHING.md", "re-ss-01-4-1", "the migration recovery baseline")
+%w[re-ss-01-argon-v1.0.0 re-ss-01-istore-v0.1.0-beta.1].each do |tag|
+  require_text.call("docs/RELEASES.md", tag, "exact release tag #{tag}")
+end
+%w[
+  jdcloud-re-ss-01-libwrt-argon-v1.0.0-squashfs-factory.bin
+  jdcloud-re-ss-01-libwrt-argon-v1.0.0-squashfs-sysupgrade.bin
+  jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.1-squashfs-factory.bin
+  jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.1-squashfs-sysupgrade.bin
+].each do |filename|
+  require_text.call("docs/RELEASES.md", filename, "exact release filename #{filename}")
+end
+require_match.call("docs/RELEASES.md", /Latest.{0,100}Argon|Argon.{0,100}Latest/i, "Argon Latest policy")
+require_match.call("docs/RELEASES.md", /(Prerelease|预发布).{0,100}iStore|iStore.{0,100}(Prerelease|预发布)/i, "iStore prerelease policy")
+
+require_match.call("SECURITY.md", /(不预置|不提供|没有).{0,30}(默认|初始).{0,20}(凭据|密码|账户)/, "no default credentials")
+require_match.call("SECURITY.md", /ttyd.{0,80}(不新增|不开放|没有).{0,30}WAN/i, "no ttyd WAN firewall opening")
+require_match.call("SECURITY.md", /(必须|务必).{0,20}(设置|修改).{0,20}root.{0,10}密码|root.{0,10}密码.{0,20}(必须|务必)/i, "the root-password requirement")
+require_text.call("CHANGELOG.md", "## 1.0.0", "the 1.0.0 entry")
+require_text.call("CHANGELOG.md", "## 0.1.0-beta.1", "the 0.1.0-beta.1 entry")
+
+disclaimer = "本项目不是京东云、LibWrt 或 iStoreOS 的官方固件"
+require_text.call("README.md", disclaimer, "the unofficial firmware disclaimer")
+require_match.call("README.md", /Argon.{0,80}(稳定推荐|推荐).{0,80}(beta|测试).{0,40}(真机|硬件).{0,20}(验证|验收)/i, "Argon as the stable recommendation until beta hardware validation")
+require_match.call("docs/VARIANTS.md", /iStore.{0,60}(应用|软件).{0,60}(不保证|无法保证).{0,80}(兼容|可用).{0,80}LibWrt 25\.12/i, "the iStore application compatibility warning")
+require_match.call("docs/BUILD.md", /(不会|不).{0,20}(自动刷|自动写入).{0,50}(不会|不).{0,20}(上传|传出).{0,30}(路由器|设备).{0,20}数据/, "no auto-flash or router data upload")
+require_match.call("docs/BUILD.md", /(beta|测试).{0,30}(构建|编译).{0,30}(成功|完成).{0,80}(真机|硬件).{0,30}(验证|验收).{0,80}(合并|merge).{0,20}`main`/i, "physical validation before merging")
+
+puts "documentation contracts: ok"
+RUBY
+
 ruby - "$workflow" "$metadata_script" "$repo_root" <<'RUBY'
 require "yaml"
 require "open3"
