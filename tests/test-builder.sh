@@ -268,9 +268,9 @@ printf '%s\n' \
   > "$mode_stub_dir/uname"
 printf '%s\n' \
   '#!/usr/bin/env bash' \
-  'if [[ "$1" == "-f" ]]; then' \
-  '  if [[ "$MODE_TEST_OS" == "Darwin" ]]; then printf "%s\\n" "644"; else printf "%s\\n" "File: fake filesystem"; fi' \
-  'elif [[ "$1" == "-c" && "$2" == "%a" ]]; then' \
+  'if [[ "$MODE_TEST_OS" == "Darwin" && "$1" == "-f" && "$2" == "%Lp" ]]; then' \
+  '  printf "%s\\n" "644"' \
+  'elif [[ "$MODE_TEST_OS" == "Linux" && "$1" == "-c" && "$2" == "%a" ]]; then' \
   '  printf "%s\\n" "644"' \
   'else' \
   '  exit 1' \
