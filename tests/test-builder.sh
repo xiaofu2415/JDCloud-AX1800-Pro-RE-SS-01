@@ -38,7 +38,11 @@ variants = {
 }
 
 common_packages = %w[
+  CONFIG_CCACHE=y
+  CONFIG_LUCI_LANG_zh_Hans=y
   CONFIG_PACKAGE_luci-app-passwall2=y
+  CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_Xray=y
+  CONFIG_PACKAGE_luci-app-passwall2_Nftables_Transparent_Proxy=y
   CONFIG_PACKAGE_luci-app-mosdns=y
   CONFIG_PACKAGE_luci-app-adguardhome=y
   CONFIG_PACKAGE_luci-app-nlbwmon=y
@@ -48,6 +52,14 @@ common_packages = %w[
   CONFIG_PACKAGE_sqm-scripts-nss=y
   CONFIG_PACKAGE_luci-theme-argon=y
   CONFIG_PACKAGE_luci-theme-bootstrap=y
+]
+common_packages << "# CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_All is not set"
+
+istore_only_packages = %w[
+  CONFIG_PACKAGE_luci-app-ttyd=y
+  CONFIG_PACKAGE_luci-app-store=y
+  CONFIG_PACKAGE_quickstart=y
+  CONFIG_PACKAGE_luci-app-quickstart=y
 ]
 
 variants.each do |variant, expected|
@@ -77,6 +89,10 @@ variants.each do |variant, expected|
   ].join("\n") + "\n"
   abort "#{variant} metadata output is not exact" unless output == expected_output
 end
+
+argon_config = File.readlines(File.join(repo_root, variants.fetch("argon").fetch("config")), chomp: true)
+istore_config = File.readlines(File.join(repo_root, variants.fetch("istore").fetch("config")), chomp: true)
+abort "iStore config must add exactly the dashboard packages" unless istore_config == argon_config + istore_only_packages
 
 invalid_output, invalid_status = Open3.capture2e(metadata_script, "invalid")
 abort "unknown variant must exit 2" unless invalid_status.exitstatus == 2
@@ -122,12 +138,6 @@ feeds_install = steps.fetch(feeds_index).fetch("run")
 mosdns_install_index = feeds_install.index("./scripts/feeds install -p mosdns -a")
 all_feeds_install_index = feeds_install.index("./scripts/feeds install -a")
 abort "MosDNS feed must be installed before the general feeds" unless mosdns_install_index && all_feeds_install_index && mosdns_install_index < all_feeds_install_index
-
-argon_config = File.readlines(File.join(repo_root, variants.fetch("argon").fetch("config")), chomp: true)
-abort "ccache must be enabled" unless argon_config.include?("CONFIG_CCACHE=y")
-abort "PassWall2 must use Xray core" unless argon_config.include?("CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_Xray=y")
-abort "PassWall2 must use nftables" unless argon_config.include?("CONFIG_PACKAGE_luci-app-passwall2_Nftables_Transparent_Proxy=y")
-abort "PassWall2 all-core bundle must stay disabled" unless argon_config.include?("# CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_All is not set")
 
 custom_feeds = steps.find { |step| step["name"] == "Add requested package feeds" }
 abort "missing requested package feeds step" unless custom_feeds
