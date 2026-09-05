@@ -253,7 +253,40 @@ assert_exact_istore_feeds() {
 }
 
 feed_file_mode() {
-  stat -f '%Lp' "$1" 2> /dev/null || stat -c '%a' "$1"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    stat -f '%Lp' "$1"
+  else
+    stat -c '%a' "$1"
+  fi
+}
+
+mode_stub_dir="$fixture_root/mode-stubs"
+mkdir "$mode_stub_dir"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'printf "%s\\n" "$MODE_TEST_OS"' \
+  > "$mode_stub_dir/uname"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'if [[ "$1" == "-f" ]]; then' \
+  '  if [[ "$MODE_TEST_OS" == "Darwin" ]]; then printf "%s\\n" "644"; else printf "%s\\n" "File: fake filesystem"; fi' \
+  'elif [[ "$1" == "-c" && "$2" == "%a" ]]; then' \
+  '  printf "%s\\n" "644"' \
+  'else' \
+  '  exit 1' \
+  'fi' \
+  > "$mode_stub_dir/stat"
+chmod +x "$mode_stub_dir/uname" "$mode_stub_dir/stat"
+mode_test_file="$fixture_root/mode-test-file"
+printf '%s\n' '# test file' > "$mode_test_file"
+
+[[ "$(MODE_TEST_OS=Linux PATH="$mode_stub_dir:$PATH" feed_file_mode "$mode_test_file")" == '644' ]] || {
+  echo "feed mode helper must use GNU stat for Linux" >&2
+  exit 1
+}
+[[ "$(MODE_TEST_OS=Darwin PATH="$mode_stub_dir:$PATH" feed_file_mode "$mode_test_file")" == '644' ]] || {
+  echo "feed mode helper must use BSD stat for Darwin" >&2
+  exit 1
 }
 
 for feeds_file in "$argon_feeds" "$istore_feeds"; do
