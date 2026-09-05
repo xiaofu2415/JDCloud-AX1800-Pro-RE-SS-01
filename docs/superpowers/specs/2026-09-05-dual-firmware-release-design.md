@@ -34,11 +34,13 @@
 - 变体标识：`istore`
 - 初始产品版本：`0.1.0-beta.1`
 - 定位：在稳定版基础上增加 QuickStart、iStore 和 Web 终端
-- 默认 LuCI 主题：Argon
-- 后备界面：Bootstrap
-- QuickStart：首个 beta 通过菜单访问，不强制接管登录后的默认落地页
+- 默认落地页：QuickStart
+- 其他 LuCI 页面主题：Argon，不设置独立的“Argon 首页”入口
+- 应急主题：Bootstrap
 - Release 类型：Prerelease
 - 不得标记为 GitHub Latest
+
+QuickStart 是首页应用，不是完整 LuCI 主题。iStore 变体仍需保留 Argon 来显示网络、系统、服务和插件等非 QuickStart 页面；`main` 上的 Argon 稳定固件只能作为重新刷机时的恢复版本，不能替代当前 beta 固件内部的 LuCI 页面外壳。
 
 产品版本保存在仓库内的独立版本文件中。发布同一版本号前必须先更新版本文件；工作流发现对应标签已存在时应在编译前失败，避免覆盖或产生含义不明的重复 Release。
 
@@ -85,7 +87,7 @@ QuickStart 的软件包依赖由编译系统解析，不在配置中手工重复
 
 - PassWall2、MosDNS、AdGuard Home、Docker、Tailscale、SQM 默认关闭。
 - nlbwmon 默认启用，数据库只保留 3 期。
-- iStoreOS Dashboard 版中 QuickStart 可运行以提供首页数据。
+- iStoreOS Dashboard 版中 QuickStart 运行并作为登录后的默认落地页。
 - `ttyd` 只允许从 LAN 侧通过 LuCI 使用，不新增 WAN 防火墙入口。
 - 固件不预置代理节点、账户、证书、密码或云服务凭据。
 - 固件不自动挂载 `storage`、不启用 swap，也不改变 LAN 默认地址；这些属于真机验收后的独立配置任务。
@@ -155,7 +157,7 @@ factory 用于当前已验证的 U-Boot Web 首次/恢复刷写路径；sysupgra
 ## 故障隔离与回退
 
 - iStoreOS Dashboard 构建失败不得影响 Argon 配置和现有 Release。
-- QuickStart 页面异常时仍可直接进入标准 LuCI 状态页，并切换 Argon 或 Bootstrap。
+- QuickStart 页面异常时仍可通过固定 URL 直接进入标准 LuCI 状态页；非 QuickStart 页面继续使用 Argon，必要时切换 Bootstrap。
 - iStore 软件源或应用不兼容时不得阻止 LuCI、SSH、WAN、LAN 或无线网络启动。
 - beta 真机验收失败时保留失败记录，但不将其标记为 Latest；恢复使用已验证 Argon factory 镜像。
 - 不自动刷写路由器，不自动修改当前路由器配置。
@@ -178,11 +180,8 @@ factory 用于当前已验证的 U-Boot Web 首次/恢复刷写路径；sysupgra
 
 - RE-SS-01 能通过 U-Boot Web 写入并正常重启。
 - 标准 LuCI、Argon 和 Bootstrap 均可访问。
-- QuickStart 页面能显示 WAN、接口、内存和 eMMC/overlay 信息。
+- 登录后默认进入 QuickStart，且页面能显示 WAN、接口、内存和 eMMC/overlay 信息。
 - iStore 能加载软件列表；单个第三方应用仍按兼容性单独验收。
 - LuCI 终端可从 LAN 打开，WAN 无法访问。
 - Docker、代理、DNS、Tailscale 和 SQM 保持预定默认状态。
 - 至少完成一次重启与断电重启验证。
-
-首个 beta 通过以上真机验收后，另行决定是否让 QuickStart 接管登录后的默认首页。该决定不与首次移植捆绑。
-
