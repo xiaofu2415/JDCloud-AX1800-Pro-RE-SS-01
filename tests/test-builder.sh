@@ -206,3 +206,79 @@ grep -Fq "mediaurlbase='/luci-static/argon'" <<<"$defaults_text" || {
 }
 
 echo "requested packages and defaults: ok"
+
+feed_script="$repo_root/.github/scripts/add-package-feeds.sh"
+argon_feeds="$fixture_root/argon-feeds.conf"
+istore_feeds="$fixture_root/istore-feeds.conf"
+unknown_feeds="$fixture_root/unknown-feeds.conf"
+
+printf '%s\n' '# test feed configuration' > "$argon_feeds"
+printf '%s\n' '# test feed configuration' > "$istore_feeds"
+printf '%s\n' '# test feed configuration' > "$unknown_feeds"
+
+bash "$feed_script" "$argon_feeds" argon
+bash "$feed_script" "$istore_feeds" istore
+
+common_feed_lines=(
+  'src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages.git;main'
+  'src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2.git;main'
+  'src-git mosdns https://github.com/sbwml/luci-app-mosdns.git;v5'
+)
+istore_feed_lines=(
+  'src-git istore https://github.com/linkease/istore.git;main'
+  'src-git nas https://github.com/linkease/nas-packages.git;master'
+  'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main'
+)
+
+for feeds_file in "$argon_feeds" "$istore_feeds"; do
+  for line in "${common_feed_lines[@]}"; do
+    [[ "$(grep -Fxc "$line" "$feeds_file")" -eq 1 ]] || {
+      echo "common feed must occur exactly once: $line" >&2
+      exit 1
+    }
+  done
+done
+
+if grep -Eq '^src-git (istore|nas|nas_luci)[[:space:]]' "$argon_feeds"; then
+  echo "Argon must not include iStore-only feeds" >&2
+  exit 1
+fi
+
+for line in "${istore_feed_lines[@]}"; do
+  [[ "$(grep -Fxc "$line" "$istore_feeds")" -eq 1 ]] || {
+    echo "iStore feed must occur exactly once: $line" >&2
+    exit 1
+  }
+done
+
+actual_istore_feed_lines="$(grep -E '^src-git (istore|nas|nas_luci)[[:space:]]' "$istore_feeds")"
+expected_istore_feed_lines="$(printf '%s\n' "${istore_feed_lines[@]}")"
+[[ "$actual_istore_feed_lines" == "$expected_istore_feed_lines" ]] || {
+  echo "iStore feeds must use the required order and exact definitions" >&2
+  exit 1
+}
+
+cp "$argon_feeds" "$fixture_root/argon-feeds-once.conf"
+cp "$istore_feeds" "$fixture_root/istore-feeds-once.conf"
+bash "$feed_script" "$argon_feeds" argon
+bash "$feed_script" "$istore_feeds" istore
+cmp -s "$argon_feeds" "$fixture_root/argon-feeds-once.conf" || {
+  echo "Argon feed addition must be idempotent" >&2
+  exit 1
+}
+cmp -s "$istore_feeds" "$fixture_root/istore-feeds-once.conf" || {
+  echo "iStore feed addition must be idempotent" >&2
+  exit 1
+}
+
+cp "$unknown_feeds" "$fixture_root/unknown-feeds-before.conf"
+if bash "$feed_script" "$unknown_feeds" unknown; then
+  echo "unknown feed variant must fail" >&2
+  exit 1
+fi
+cmp -s "$unknown_feeds" "$fixture_root/unknown-feeds-before.conf" || {
+  echo "unknown feed variant must not modify the feed file" >&2
+  exit 1
+}
+
+echo "variant-specific feeds: ok"
