@@ -498,3 +498,134 @@ cmp -s "$unknown_feeds" "$fixture_root/unknown-feeds-before.conf" || {
 }
 
 echo "variant-specific feeds: ok"
+
+ruby - "$repo_root" <<'RUBY'
+require "digest"
+require "fileutils"
+require "open3"
+require "tmpdir"
+
+repo = ARGV.fetch(0)
+prepare = File.join(repo, ".github/scripts/prepare-release.sh")
+verify = File.join(repo, ".github/scripts/verify-release.sh")
+policy = File.join(repo, ".github/scripts/required-packages.sh")
+input_prefix = "libwrt-qualcommax-ipq60xx-jdcloud_re-ss-01"
+suffixes = %w[-squashfs-factory.bin -squashfs-sysupgrade.bin -initramfs-uImage.itb .manifest]
+
+run = lambda do |success, label, *args|
+  output, status = Open3.capture2e("bash", *args)
+  abort "#{label}: expected #{success ? 'success' : 'failure'}\n#{output}" unless status.success? == success
+  puts "release #{label}: ok"
+end
+checksums = lambda do |directory|
+  names = Dir.children(directory).reject { |name| name == "SHA256SUMS" }.sort
+  File.write(File.join(directory, "SHA256SUMS"), names.map { |name|
+    "#{Digest::SHA256.file(File.join(directory, name)).hexdigest}  #{name}\n"
+  }.join)
+end
+
+Dir.mktmpdir("release fixtures ") do |root|
+  fixture = lambda do |label, variant = "istore"|
+    target = File.join(root, label)
+    Dir.mkdir(target)
+    FileUtils.cp(Dir.glob(File.join(repo, "tests/fixtures/release/{profiles.json,config.buildinfo}")), target)
+    File.binwrite(File.join(target, input_prefix + suffixes[0]), "F" * 65536)
+    File.write(File.join(target, input_prefix + suffixes[1]), "sysupgrade fixture\n")
+    File.write(File.join(target, input_prefix + suffixes[2]), "initramfs fixture\n")
+    packages, status = Open3.capture2e("bash", policy, variant)
+    abort "fixture package policy failed" unless status.success?
+    File.write(File.join(target, input_prefix + suffixes[3]), packages.lines.map { |package| "#{package.strip} - 1.0\n" }.join)
+    target
+  end
+  source = fixture.call("source")
+  output = File.join(root, "published")
+  config = "configs/re-ss-01-istore.config"
+  version = "0.1.0-beta.1"
+  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.1"
+  args = ["istore", version, "source-sha", "builder-sha", config]
+  # A different working directory must not change which config gets copied.
+  Dir.chdir(root) { run.call(true, "prepare", prepare, source, output, *args) }
+  run.call(true, "verify", verify, output, "istore", version)
+  expected = (suffixes.map { |suffix| prefix + suffix } + %w[profiles.json build.config BUILD-METADATA.txt SHA256SUMS]).sort
+  abort "release file set is not exact" unless Dir.children(output).sort == expected
+  suffixes.each do |suffix|
+    abort "renaming changed #{suffix}" unless File.binread(File.join(source, input_prefix + suffix)) == File.binread(File.join(output, prefix + suffix))
+  end
+  abort "wrong config was copied" unless File.binread(File.join(output, "build.config")) == File.binread(File.join(repo, config))
+  metadata = File.readlines(File.join(output, "BUILD-METADATA.txt"), chomp: true)
+  %W[source_commit=source-sha builder_commit=builder-sha config_file=#{config} variant=istore version=#{version}].each do |record|
+    abort "missing or duplicate metadata: #{record}" unless metadata.count(record) == 1
+  end
+  abort "metadata must contain one key=value record per line" unless metadata.all? { |record| record.match?(/\A[a-z_]+=[^\r\n]+\z/) }
+  expected_sums = expected.reject { |name| name == "SHA256SUMS" }.map { |name| "#{Digest::SHA256.file(File.join(output, name)).hexdigest}  #{name}\n" }.join
+  abort "checksum list must cover every asset exactly once in sorted order" unless File.read(File.join(output, "SHA256SUMS")) == expected_sums
+  again = File.join(root, "again")
+  Dir.mkdir(again)
+  run.call(true, "deterministic preparation into empty directory", prepare, source, again, *args)
+  expected.each { |name| abort "nondeterministic #{name}" unless File.binread(File.join(again, name)) == File.binread(File.join(output, name)) }
+
+  bad_prepare = lambda do |label, modified_args = args, &mutation|
+    target = fixture.call(label)
+    mutation.call(target) if mutation
+    destination = File.join(root, "#{label}-output")
+    run.call(false, label, prepare, target, destination, *modified_args)
+    abort "failed preparation published partial files: #{label}" if File.exist?(destination)
+  end
+  bad_prepare.call("unaligned factory") { |target| File.open(File.join(target, input_prefix + suffixes[0]), "a") { |file| file.write("x") } }
+  suffixes.each do |suffix|
+    bad_prepare.call("missing #{suffix}") { |target| FileUtils.rm(File.join(target, input_prefix + suffix)) }
+    bad_prepare.call("duplicate #{suffix}") { |target| FileUtils.cp(File.join(target, input_prefix + suffix), File.join(target, "duplicate-" + input_prefix + suffix)) }
+  end
+  bad_prepare.call("missing quickstart") { |target| path = File.join(target, input_prefix + ".manifest"); File.write(path, File.readlines(path).reject { |line| line.start_with?("luci-app-quickstart ") }.join) }
+  bad_prepare.call("package substring or second field") { |target| path = File.join(target, input_prefix + ".manifest"); File.write(path, File.read(path).sub("luci-app-quickstart - 1.0", "luci-app-quickstart-extra - 1.0\nother - luci-app-quickstart")) }
+  bad_prepare.call("wrong device only") { |target| suffixes.each { |suffix| FileUtils.mv(File.join(target, input_prefix + suffix), File.join(target, "libwrt-other_jdcloud_re-ss-01-imposter" + suffix)) } }
+  bad_prepare.call("wrong version", ["istore", "9.9.9", "source-sha", "builder-sha", config])
+  bad_prepare.call("unknown variant", ["unknown", version, "source-sha", "builder-sha", config])
+  bad_prepare.call("wrong config", ["istore", version, "source-sha", "builder-sha", "configs/re-ss-01-argon.config"])
+  bad_prepare.call("newline metadata", ["istore", version, "source-sha\nvariant=argon", "builder-sha", config])
+  bad_prepare.call("missing argument", args[0...-1])
+  bad_prepare.call("extra argument", args + ["extra"])
+  %w[profiles.json].each do |name|
+    bad_prepare.call("missing #{name}") { |target| FileUtils.rm(File.join(target, name)) }
+  end
+  bad_prepare.call("empty image") { |target| File.write(File.join(target, input_prefix + suffixes[0]), "") }
+  # Neighbouring-device assets in the build tree must never reach the release.
+  File.write(File.join(source, "libwrt-redmi_ax5-jdcloud-squashfs-factory.bin"), "other device")
+  isolated = File.join(root, "isolated")
+  run.call(true, "device isolation", prepare, source, isolated, *args)
+  abort "another device was copied" unless Dir.children(isolated).sort == expected
+  sentinel = File.join(output, "keep.txt")
+  File.write(sentinel, "existing user data")
+  run.call(false, "nonempty output", prepare, source, output, *args)
+  abort "existing output was changed" unless File.read(sentinel) == "existing user data"
+  FileUtils.rm(sentinel)
+
+  bad_verify = lambda do |label, rehash = true, &mutation|
+    directory = File.join(root, "verify #{label}")
+    FileUtils.cp_r(output, directory)
+    mutation.call(directory)
+    checksums.call(directory) if rehash
+    run.call(false, label, verify, directory, "istore", version)
+  end
+  bad_verify.call("checksum mismatch", false) { |directory| File.write(File.join(directory, prefix + suffixes[1]), "corrupted") }
+  bad_verify.call("unaligned verification") { |directory| File.open(File.join(directory, prefix + suffixes[0]), "a") { |file| file.write("x") } }
+  bad_verify.call("first field verification") { |directory| path = File.join(directory, prefix + ".manifest"); File.write(path, File.read(path).sub("luci-app-quickstart - 1.0", "luci-app-quickstart-extra - 1.0\nother - luci-app-quickstart")) }
+  %w[jdcloud-re-cp-03-libwrt-istore-v0.1.0-beta.1-squashfs-factory.bin jdcloud-re-ss-01-libwrt-argon-v1.0.0-squashfs-factory.bin].each do |name|
+    bad_verify.call("foreign #{name}") { |directory| File.write(File.join(directory, name), "foreign") }
+  end
+  expected.each do |name|
+    bad_verify.call("missing release #{name}", name != "SHA256SUMS") { |directory| FileUtils.rm(File.join(directory, name)) }
+    bad_verify.call("empty release #{name}", name != "SHA256SUMS") { |directory| File.write(File.join(directory, name), "") }
+  end
+  bad_verify.call("incomplete checksum coverage", false) { |directory| path = File.join(directory, "SHA256SUMS"); File.write(path, File.readlines(path)[0...-1].join) }
+  bad_verify.call("duplicate checksum entry", false) { |directory| path = File.join(directory, "SHA256SUMS"); File.open(path, "a") { |file| file.write(File.readlines(path).first) } }
+  bad_verify.call("metadata variant mismatch") { |directory| path = File.join(directory, "BUILD-METADATA.txt"); File.write(path, File.read(path).sub("variant=istore", "variant=argon")) }
+  run.call(false, "verify wrong version", verify, output, "istore", "9.9.9")
+  run.call(false, "verify extra argument", verify, output, "istore", version, "extra")
+  argon = fixture.call("argon source", "argon")
+  argon_output = File.join(root, "argon output")
+  run.call(true, "Argon preparation", prepare, argon, argon_output, "argon", "1.0.0", "source-sha", "builder-sha", "configs/re-ss-01-argon.config")
+  run.call(true, "Argon verification", verify, argon_output, "argon", "1.0.0")
+end
+puts "release collection and verification: ok"
+RUBY
