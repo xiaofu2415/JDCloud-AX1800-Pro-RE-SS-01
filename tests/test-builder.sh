@@ -272,6 +272,9 @@ printf '%s\n' \
   '  printf "%s\\n" "644"' \
   'elif [[ "$MODE_TEST_OS" == "Linux" && "$1" == "-c" && "$2" == "%a" ]]; then' \
   '  printf "%s\\n" "644"' \
+  'elif [[ "$MODE_TEST_OS" == "Linux" && "$1" == "-f" ]]; then' \
+  '  printf "%s\\n" "File: $3"' \
+  '  exit 1' \
   'else' \
   '  exit 1' \
   'fi' \
