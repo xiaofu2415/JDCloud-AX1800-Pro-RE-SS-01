@@ -7,6 +7,7 @@ metadata_script="$repo_root/.github/scripts/variant-metadata.sh"
 factory_aligner="$repo_root/.github/scripts/fix-re-ss-01-factory.sh"
 factory_fixture="$repo_root/tests/fixtures/ipq60xx.mk"
 defaults="$repo_root/files/etc/uci-defaults/zz-re-ss-01-services"
+required_packages="$repo_root/.github/scripts/required-packages.sh"
 
 ruby - "$workflow" "$metadata_script" "$repo_root" <<'RUBY'
 require "yaml"
@@ -206,6 +207,85 @@ grep -Fq "mediaurlbase='/luci-static/argon'" <<<"$defaults_text" || {
 }
 
 echo "requested packages and defaults: ok"
+
+[[ -x "$required_packages" ]] || {
+  echo "missing required-package helper: .github/scripts/required-packages.sh" >&2
+  exit 1
+}
+
+common_required_packages=(
+  luci-app-passwall2
+  luci-app-mosdns
+  luci-app-adguardhome
+  luci-app-nlbwmon
+  luci-app-dockerman
+  tailscale
+  luci-app-sqm
+  sqm-scripts-nss
+  luci-theme-argon
+  luci-theme-bootstrap
+  luci-i18n-base-zh-cn
+)
+istore_required_packages=(
+  luci-app-ttyd
+  luci-app-store
+  quickstart
+  luci-app-quickstart
+)
+
+write_expected_required_packages() {
+  local variant="$1"
+
+  printf '%s\n' "${common_required_packages[@]}"
+  if [[ "$variant" == "istore" ]]; then
+    printf '%s\n' "${istore_required_packages[@]}"
+  fi
+}
+
+assert_required_packages() {
+  local variant="$1"
+  local config="$repo_root/configs/re-ss-01-${variant}.config"
+  local expected="$fixture_root/${variant}-required-packages.expected"
+  local actual="$fixture_root/${variant}-required-packages.actual"
+  local package
+
+  write_expected_required_packages "$variant" > "$expected"
+  "$required_packages" "$variant" > "$actual"
+  cmp -s "$actual" "$expected" || {
+    echo "$variant required packages must have the exact required order" >&2
+    exit 1
+  }
+  awk 'NF == 0 || seen[$0]++ { exit 1 }' "$actual" || {
+    echo "$variant required packages must not contain blank lines or duplicates" >&2
+    exit 1
+  }
+  while IFS= read -r package; do
+    grep -Fqx "CONFIG_PACKAGE_${package}=y" "$config" || {
+      echo "$variant config missing required package: $package" >&2
+      exit 1
+    }
+  done < "$actual"
+}
+
+assert_required_packages argon
+assert_required_packages istore
+
+unknown_packages_stdout="$fixture_root/unknown-required-packages.stdout"
+unknown_packages_stderr="$fixture_root/unknown-required-packages.stderr"
+if "$required_packages" unknown > "$unknown_packages_stdout" 2> "$unknown_packages_stderr"; then
+  echo "unknown required-package variant must fail" >&2
+  exit 1
+fi
+[[ "$(< "$unknown_packages_stderr")" == 'unknown required-package variant: unknown' ]] || {
+  echo "unknown required-package variant error must be exact" >&2
+  exit 1
+}
+[[ ! -s "$unknown_packages_stdout" ]] || {
+  echo "unknown required-package variant must not write package output" >&2
+  exit 1
+}
+
+echo "required package policy: ok"
 
 feed_script="$repo_root/.github/scripts/add-package-feeds.sh"
 argon_feeds="$fixture_root/argon-feeds.conf"
