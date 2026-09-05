@@ -166,6 +166,7 @@ istore_only_packages = %w[
   CONFIG_PACKAGE_luci-app-store=y
   CONFIG_PACKAGE_quickstart=y
   CONFIG_PACKAGE_luci-app-quickstart=y
+  CONFIG_PACKAGE_xz-utils=y
 ]
 
 variants.each do |variant, expected|
@@ -198,7 +199,7 @@ end
 
 argon_config = File.readlines(File.join(repo_root, variants.fetch("argon").fetch("config")), chomp: true)
 istore_config = File.readlines(File.join(repo_root, variants.fetch("istore").fetch("config")), chomp: true)
-abort "iStore config must add exactly the dashboard packages" unless istore_config == argon_config + istore_only_packages
+abort "iStore config must add exactly the dashboard packages and tar/xz prerequisite" unless istore_config == argon_config + istore_only_packages
 
 invalid_output, invalid_status = Open3.capture2e(metadata_script, "invalid")
 abort "unknown variant must exit 2" unless invalid_status.exitstatus == 2

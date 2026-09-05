@@ -1,0 +1,29 @@
+# Reduced from real package-metadata.pl output for the run #5 dependency chain.
+# See README.md for pinned source provenance and the scope of this fixture.
+mainmenu "iStore tar/xz dependency regression"
+
+config MODULES
+	bool
+	modules
+	default y
+
+config PACKAGE_luci-app-store
+	tristate "iStore"
+	depends on !(PACKAGE_TAR_XZ) || PACKAGE_xz-utils
+	select PACKAGE_tar
+
+config PACKAGE_tar
+	tristate "GNU tar"
+	depends on !(PACKAGE_TAR_XZ) || PACKAGE_xz-utils
+	select PACKAGE_xz if PACKAGE_TAR_XZ
+
+config PACKAGE_TAR_XZ
+	bool "tar xz support"
+	default y
+
+config PACKAGE_xz
+	tristate "xz"
+	depends on PACKAGE_xz-utils
+
+config PACKAGE_xz-utils
+	tristate "XZ Utils (meta)"
