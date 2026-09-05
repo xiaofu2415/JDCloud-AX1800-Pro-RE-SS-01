@@ -99,20 +99,49 @@ invalid_output, invalid_status = Open3.capture2e(metadata_script, "invalid")
 abort "unknown variant must exit 2" unless invalid_status.exitstatus == 2
 
 workflow = YAML.safe_load(File.read(workflow_path), aliases: true)
-abort "workflow must be manually triggered" unless workflow.dig("on", "workflow_dispatch") == {}
+variant_input = workflow.dig("on", "workflow_dispatch", "inputs", "variant")
+abort "workflow_dispatch.inputs.variant is missing" unless variant_input
+abort "wrong firmware variant input" unless variant_input == {
+  "description" => "Firmware variant", "required" => true, "default" => "istore",
+  "type" => "choice", "options" => %w[argon istore]
+}
+abort "workflow must be manual-only" unless workflow.fetch("on").keys == ["workflow_dispatch"]
 abort "scheduled builds must stay disabled" if workflow.fetch("on", {}).key?("schedule")
 abort "release job needs contents: write" unless workflow.dig("permissions", "contents") == "write"
+abort "build timeout must stay 360 minutes" unless workflow.dig("jobs", "build", "timeout-minutes") == 360
 
 env = workflow.fetch("env")
 abort "wrong upstream source" unless env["SOURCE_REPOSITORY"] == "https://github.com/LiBwrt/LibWrt.git"
 abort "wrong upstream branch" unless env["SOURCE_BRANCH"] == "25.12-nss"
+abort "fixed CONFIG_FILE must not select the variant" if File.read(workflow_path).include?("CONFIG_FILE")
 
 steps = workflow.dig("jobs", "build", "steps")
+step_named = lambda do |name|
+  steps.find { |step| step["name"] == name } || abort("missing workflow step: #{name}")
+end
 checkout = steps.find { |step| step["uses"] == "actions/checkout@v4" }
 abort "checkout credentials must not persist into upstream build steps" unless checkout.dig("with", "persist-credentials") == false
 
+resolver = step_named.call("Resolve firmware variant")
+abort "variant resolution needs id: variant" unless resolver["id"] == "variant"
+abort "variant output must be appended verbatim" unless resolver["run"].strip == 'bash .github/scripts/variant-metadata.sh "${{ inputs.variant }}" >> "$GITHUB_OUTPUT"'
+abort "variant resolution must follow checkout" unless steps.index(checkout) < steps.index(resolver)
+
+tag_check = step_named.call("Reject existing product-version tag")
+abort "tag check must authenticate with the GitHub token" unless tag_check.dig("env", "GH_TOKEN") == '${{ github.token }}'
+abort "tag check must use the product tag" unless tag_check.dig("env", "RELEASE_TAG") == '${{ steps.variant.outputs.tag }}'
+["Install build dependencies", "Clone current LibWrt source", "Compile firmware"].each do |name|
+  abort "tag collision must fail before #{name}" unless steps.index(resolver) < steps.index(tag_check) && steps.index(tag_check) < steps.index(step_named.call(name))
+end
+
 load_config = steps.find { |step| step["name"] == "Load RE-SS-01 configuration" }
 abort "configuration must be expanded from the OpenWrt source directory" unless load_config["working-directory"] == "openwrt"
+abort "load selected variant config before defconfig" unless load_config["run"].match?(/cp "\$GITHUB_WORKSPACE\/\$\{\{ steps\.variant\.outputs\.config_file \}\}" \.config\s+make defconfig/)
+
+package_check = step_named.call("Verify requested packages")
+abort "verify packages after defconfig" unless steps.index(package_check) > steps.index(load_config) && package_check["working-directory"] == "openwrt"
+abort "package verification must use the variant policy" unless package_check["run"].include?('packages="$(bash "$GITHUB_WORKSPACE/.github/scripts/required-packages.sh" "${{ steps.variant.outputs.variant }}")"')
+abort "package verification must check every selected package" unless package_check["run"].include?('while IFS= read -r package; do') && package_check["run"].include?('grep -qx "CONFIG_PACKAGE_${package}=y" .config') && package_check["run"].include?('done <<< "$packages"')
 
 alignment = steps.find { |step| step["name"] == "Align RE-SS-01 factory image" }
 abort "missing RE-SS-01 factory alignment step" unless alignment
@@ -127,10 +156,10 @@ abort "missing download and compiler cache" unless cache
 cache_paths = cache.dig("with", "path").lines.map(&:strip).reject(&:empty?)
 abort "cache must contain only downloads and ccache" unless cache_paths == %w[openwrt/dl openwrt/.ccache]
 cache_key = cache.dig("with", "key")
-expected_key = "re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.source.outputs.commit }}-${{ hashFiles(env.CONFIG_FILE) }}"
-abort "cache key must track runner, branch, source and config" unless cache_key == expected_key
+expected_key = "re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-${{ steps.source.outputs.commit }}-${{ hashFiles(steps.variant.outputs.config_file) }}"
+abort "cache key must track runner, branch, variant, source and selected config" unless cache_key == expected_key
 restore_keys = cache.dig("with", "restore-keys").lines.map(&:strip).reject(&:empty?)
-abort "cache must reuse the latest compatible branch entry" unless restore_keys == ["re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-"]
+abort "cache restore must stay within the selected variant" unless restore_keys == ["re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-"]
 cache_index = steps.index(cache)
 feeds_index = steps.index { |step| step["name"] == "Install feeds" }
 abort "cache must restore after clone and before feeds" unless cache_index > alignment_index && cache_index < feeds_index
@@ -143,7 +172,102 @@ abort "MosDNS feed must be installed before the general feeds" unless mosdns_ins
 custom_feeds = steps.find { |step| step["name"] == "Add requested package feeds" }
 abort "missing requested package feeds step" unless custom_feeds
 abort "custom feeds must be added before feed installation" unless steps.index(custom_feeds) < feeds_index
-abort "custom feeds script is not used" unless custom_feeds["run"] == "bash .github/scripts/add-package-feeds.sh openwrt/feeds.conf.default"
+abort "custom feeds script must receive selected variant" unless custom_feeds["run"] == 'bash .github/scripts/add-package-feeds.sh openwrt/feeds.conf.default "${{ steps.variant.outputs.variant }}"'
+
+prepare = step_named.call("Prepare RE-SS-01 release")
+verify = step_named.call("Verify RE-SS-01 release")
+prepare_call = 'bash .github/scripts/prepare-release.sh openwrt/bin/targets/qualcommax/ipq60xx output "${{ steps.variant.outputs.variant }}" "${{ steps.variant.outputs.version }}" "${{ steps.source.outputs.commit }}" "${{ github.sha }}" "${{ steps.variant.outputs.config_file }}"'
+abort "release preparation arguments must follow the script contract" unless prepare["run"].gsub(/[ \t]*\\\n\s*/, " ").strip == prepare_call
+abort "release verification arguments must follow the script contract" unless verify["run"].strip == 'bash .github/scripts/verify-release.sh output "${{ steps.variant.outputs.variant }}" "${{ steps.variant.outputs.version }}"'
+artifact = step_named.call("Upload workflow artifact")
+release = step_named.call("Publish GitHub release")
+abort "artifact must use the variant/version metadata name" unless artifact.dig("with", "name") == '${{ steps.variant.outputs.artifact_name }}'
+abort "artifact must upload verified output" unless artifact.dig("with", "path") == "output/" && artifact.dig("with", "if-no-files-found") == "error"
+ordered = [step_named.call("Compile firmware"), prepare, verify, artifact, release].map { |step| steps.index(step) }
+abort "release must be prepared and verified before upload/publication" unless ordered == ordered.sort && ordered.uniq == ordered
+abort "release names must not depend on run number or attempt" if File.read(workflow_path).match?(/github\.run_(number|attempt)|GITHUB_RUN_(NUMBER|ATTEMPT)/)
+release_env = {
+  "GH_TOKEN" => '${{ github.token }}', "VARIANT" => '${{ steps.variant.outputs.variant }}',
+  "VERSION" => '${{ steps.variant.outputs.version }}', "RELEASE_TAG" => '${{ steps.variant.outputs.tag }}',
+  "RELEASE_TITLE" => '${{ steps.variant.outputs.release_title }}', "PRERELEASE" => '${{ steps.variant.outputs.prerelease }}',
+  "SOURCE_COMMIT" => '${{ steps.source.outputs.commit }}', "BUILDER_COMMIT" => '${{ github.sha }}',
+  "SELECTED_CONFIG" => '${{ steps.variant.outputs.config_file }}'
+}
+release_env.each do |key, value|
+  abort "release metadata is not wired: #{key}" unless release.dig("env", key) == value
+end
+
+# Execute the actual run snippets; external build and GitHub commands are bounded doubles.
+steps.each do |step|
+  next unless step["run"]
+  shell = step["run"].gsub(/\$\{\{.*?\}\}/, "test-value")
+  output, status = Open3.capture2e("bash", "-n", stdin_data: shell)
+  abort "invalid shell in #{step['name']}: #{output}" unless status.success?
+end
+Dir.mktmpdir("workflow-contract-") do |directory|
+  scripts = File.join(directory, "scripts")
+  Dir.mkdir(scripts)
+  File.write(File.join(scripts, "feeds"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\"\n")
+  File.chmod(0755, File.join(scripts, "feeds"))
+  variants.each do |variant, expected|
+    output_file = File.join(directory, "github-output")
+    File.write(output_file, "existing=keep\n")
+    shell = resolver.fetch("run").gsub('${{ inputs.variant }}', variant)
+    output, status = Open3.capture2e({"GITHUB_OUTPUT" => output_file}, "bash", "-euo", "pipefail", "-c", shell, chdir: repo_root)
+    metadata, metadata_status = Open3.capture2e(metadata_script, variant)
+    abort "#{variant} resolver must preserve existing outputs and append metadata verbatim: #{output}" unless status.success? && metadata_status.success? && File.read(output_file) == "existing=keep\n" + metadata
+
+    config_path = File.join(directory, ".config")
+    policy, policy_status = Open3.capture2e("bash", File.join(repo_root, ".github/scripts/required-packages.sh"), variant)
+    abort "#{variant} package policy failed" unless policy_status.success?
+    config = policy.lines.map { |package| "CONFIG_PACKAGE_#{package.strip}=y\n" }.join
+    package_shell = package_check.fetch("run").gsub('${{ steps.variant.outputs.variant }}', variant)
+    [config, config.sub(/=y\n/, "=m\n")].each_with_index do |contents, index|
+      File.write(config_path, contents)
+      output, status = Open3.capture2e({"GITHUB_WORKSPACE" => repo_root}, "bash", "-euo", "pipefail", "-c", package_shell, chdir: directory)
+      abort "#{variant} post-defconfig package check is wrong: #{output}" unless status.success? == (index == 0)
+    end
+
+    shell = feeds_install.gsub('${{ steps.variant.outputs.variant }}', variant)
+    output, status = Open3.capture2e("bash", "-euo", "pipefail", "-c", shell, chdir: directory)
+    commands = ["update -a", "install -p mosdns -a"]
+    commands += ["install -d y -p istore luci-app-store", "install -p nas quickstart", "install -p nas_luci luci-app-quickstart"] if variant == "istore"
+    commands << "install -a"
+    abort "#{variant} named-feed installation order/condition is wrong: #{output}" unless status.success? && output.lines.map(&:strip) == commands
+
+    values = {"GITHUB_REPOSITORY" => "owner/repo", "VARIANT" => variant, "VERSION" => expected.fetch("version"),
+      "RELEASE_TAG" => expected.fetch("tag"), "RELEASE_TITLE" => expected.fetch("release_title"),
+      "PRERELEASE" => expected.fetch("prerelease"), "SOURCE_BRANCH" => "25.12-nss",
+      "SOURCE_COMMIT" => "source-sha", "BUILDER_COMMIT" => "builder-sha", "SELECTED_CONFIG" => expected.fetch("config")}
+    shell = "gh() { printf '<%s>\\n' \"$@\"; }\n" + release.fetch("run")
+    output, status = Open3.capture2e(values, "bash", "-euo", "pipefail", "-c", shell, chdir: directory)
+    abort "#{variant} release command failed: #{output}" unless status.success?
+    ["<release>\n<create>\n<#{expected.fetch('tag')}>", "<--repo>\n<owner/repo>", "<--target>\n<builder-sha>", "<--title>\n<#{expected.fetch('release_title')}>", "<--latest=#{variant == 'argon'}>"].each do |argument|
+      abort "#{variant} release argument missing: #{argument}" unless output.include?(argument)
+    end
+    abort "#{variant} prerelease flag is wrong" unless output.include?("<--prerelease>") == (variant == "istore")
+    notes = "Device: JDCloud AX1800 PRO (RE-SS-01)\nVariant: #{variant}\nProduct version: #{expected.fetch('version')}\nSource: LiBwrt/LibWrt 25.12-nss (source-sha)\nBuilder commit: builder-sha\nConfig: #{expected.fetch('config')}"
+    abort "#{variant} release notes are not exact" unless output.include?("<--notes>\n<#{notes}>")
+  end
+
+  # A missing exact tag passes; a same-prefix tag must not be a collision.
+  {"" => true, "refs/tags/re-ss-01-istore-v0.1.0-beta.1-extra" => true,
+   "refs/tags/re-ss-01-istore-v0.1.0-beta.1" => false}.each do |refs, success|
+    shell = <<~'SHELL'
+      gh() {
+        [[ "$*" == "api repos/owner/repo/git/matching-refs/tags/re-ss-01-istore-v0.1.0-beta.1 --jq .[].ref" ]] || return 97
+        printf '%s\n' "$TEST_REFS"
+      }
+    SHELL
+    shell += tag_check.fetch("run")
+    output, status = Open3.capture2e({"TEST_REFS" => refs, "RELEASE_TAG" => "re-ss-01-istore-v0.1.0-beta.1", "GITHUB_REPOSITORY" => "owner/repo"}, "bash", "-euo", "pipefail", "-c", shell)
+    abort "tag collision policy is wrong for #{refs}: #{output}" unless status.success? == success
+  end
+  shell = "gh() { return 1; }\n" + tag_check.fetch("run")
+  _, status = Open3.capture2e({"RELEASE_TAG" => "tag", "GITHUB_REPOSITORY" => "owner/repo"}, "bash", "-euo", "pipefail", "-c", shell)
+  abort "tag lookup failure must stop the build" if status.success?
+end
+puts "dual-variant workflow contracts and shell snippets: ok"
 
 abort "missing last-running first-boot service defaults" unless File.file?(File.join(repo_root, "files/etc/uci-defaults/99-re-ss-01-services"))
 abort "firmware files must be copied before configuration" unless steps.any? { |step| step["name"] == "Install RE-SS-01 defaults" }
