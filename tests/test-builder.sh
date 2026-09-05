@@ -252,6 +252,10 @@ assert_exact_istore_feeds() {
   }
 }
 
+feed_file_mode() {
+  stat -f '%Lp' "$1" 2> /dev/null || stat -c '%a' "$1"
+}
+
 for feeds_file in "$argon_feeds" "$istore_feeds"; do
   for line in "${common_feed_lines[@]}"; do
     [[ "$(grep -Fxc "$line" "$feeds_file")" -eq 1 ]] || {
@@ -274,12 +278,22 @@ printf '%s\n' \
   'src-git nas https://example.invalid/nas-packages.git;legacy' \
   'src-git nas_luci https://example.invalid/nas-packages-luci.git;legacy' \
   > "$stale_istore_feeds"
+chmod 0644 "$stale_istore_feeds"
 bash "$feed_script" "$stale_istore_feeds" istore
 assert_exact_istore_feeds "$stale_istore_feeds"
+[[ "$(feed_file_mode "$stale_istore_feeds")" == '644' ]] || {
+  echo "normalizing iStore feeds must preserve mode 0644" >&2
+  exit 1
+}
 
 printf '%s\n' '# test feed configuration' "${istore_feed_lines[@]}" "${istore_feed_lines[@]}" > "$duplicate_istore_feeds"
+chmod 0600 "$duplicate_istore_feeds"
 bash "$feed_script" "$duplicate_istore_feeds" istore
 assert_exact_istore_feeds "$duplicate_istore_feeds"
+[[ "$(feed_file_mode "$duplicate_istore_feeds")" == '600' ]] || {
+  echo "normalizing iStore feeds must preserve mode 0600" >&2
+  exit 1
+}
 
 cp "$argon_feeds" "$fixture_root/argon-feeds-once.conf"
 cp "$istore_feeds" "$fixture_root/istore-feeds-once.conf"
