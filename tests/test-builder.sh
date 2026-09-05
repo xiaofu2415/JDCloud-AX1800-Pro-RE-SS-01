@@ -190,47 +190,31 @@ echo "factory alignment transform: ok"
 
 assert_first_boot_policy() {
   local policy_file="$1"
-  local executable_text expected_generations expected_argon
+  local executable_text expected_executable
 
-  executable_text="$(sed -E '/^[[:space:]]*($|#)/d' "$policy_file")"
-  expected_generations="uci -q set nlbwmon.@nlbwmon[0].database_generations='3'"
-  expected_argon="uci -q set luci.main.mediaurlbase='/luci-static/argon'"
+  executable_text="$(sed -E '/^[[:space:]]*$/d; /^[[:space:]]*#[^!]/d; s/[[:space:]]+#.*$//' "$policy_file")"
+  expected_executable="$(cat <<'EOF'
+#!/bin/sh
+for service in passwall2 mosdns adguardhome dockerd tailscale sqm; do
+	[ -x "/etc/init.d/$service" ] && /etc/init.d/$service disable
+done
+uci -q set passwall2.@global[0].enabled='0'
+uci -q set mosdns.config.enabled='0'
+uci -q set adguardhome.config.enabled='0'
+uci -q set nlbwmon.@nlbwmon[0].database_generations='3'
+uci -q set luci.themes.Argon='/luci-static/argon'
+uci -q set luci.main.mediaurlbase='/luci-static/argon'
+uci -q commit passwall2
+uci -q commit mosdns
+uci -q commit adguardhome
+uci -q commit nlbwmon
+uci -q commit luci
+exit 0
+EOF
+)"
 
-  grep -Fxq "for service in passwall2 mosdns adguardhome dockerd tailscale sqm; do" <<<"$executable_text" || {
-    echo "all optional services must be covered by the first-boot policy" >&2
-    return 1
-  }
-  grep -Eq '^[[:space:]]*\[ -x "/etc/init.d/\$service" \] && /etc/init.d/\$service disable$' <<<"$executable_text" || {
-    echo "optional services must be disabled on first boot" >&2
-    return 1
-  }
-  if grep -Eq '/etc/init.d/(passwall2|mosdns|adguardhome|dockerd|tailscale|sqm|\$service)[[:space:]]+enable([[:space:]]|$)' <<<"$executable_text"; then
-    echo "optional services must not be re-enabled later" >&2
-    return 1
-  fi
-  if grep -Eq '/etc/init.d/nlbwmon[[:space:]]+disable([[:space:]]|$)' <<<"$executable_text"; then
-    echo "nlbwmon must remain enabled" >&2
-    return 1
-  fi
-  [[ "$(grep -E '^[[:space:]]*uci -q set nlbwmon\.@nlbwmon\[0\]\.database_generations='"'"'[^'"'"']+'"'"'$' <<<"$executable_text")" == "$expected_generations" ]] || {
-    echo "nlbwmon history must be set exactly once to three generations" >&2
-    return 1
-  }
-  [[ "$(grep -E '^[[:space:]]*uci -q set luci\.main\.mediaurlbase='"'"'[^'"'"']+'"'"'$' <<<"$executable_text")" == "$expected_argon" ]] || {
-    echo "Argon must be the exact final LuCI theme" >&2
-    return 1
-  }
-
-  if grep -Eq '^[[:space:]]*uci( -q)? (add|set|delete)[[:space:]]+network([.[:space:]]|$)' <<<"$executable_text" ||
-     grep -Eq '(^|[[:space:];])ip[[:space:]]+(addr|address)([[:space:];]|$)' <<<"$executable_text" ||
-     grep -Eq '(^|[[:space:];])(swapon|mount)([[:space:];]|$)' <<<"$executable_text" ||
-     grep -Eq '^[[:space:]]*uci( -q)? (add|set|delete)[[:space:]]+firewall([.[:space:]]|$)' <<<"$executable_text" ||
-     grep -Eq '(^|[[:space:];])(iptables|nft|fw4)[[:space:]]' <<<"$executable_text" ||
-     grep -Eq '(^|[[:space:];])redirect([[:space:];]|$)' <<<"$executable_text" ||
-     grep -Eqi '^[[:space:]]*uci( -q)? (add|set|delete)[[:space:]]+luci\.[^[:space:]]*(redirect|homepage|indexpage)' <<<"$executable_text" ||
-     grep -Eq '(^|[[:space:];])config[[:space:]]+rule([[:space:];]|$)' <<<"$executable_text" ||
-     grep -Fq '7681' <<<"$executable_text"; then
-    echo "first-boot defaults must not mutate LAN, storage, swap, redirect, or ttyd WAN policy" >&2
+  if [[ "$executable_text" != "$expected_executable" ]]; then
+    echo "first-boot defaults executable sequence must match the safe policy exactly" >&2
     return 1
   fi
 }
@@ -266,12 +250,17 @@ assert_policy_rejects_mutation nlbwmon-disable '/etc/init.d/nlbwmon disable'
 assert_policy_rejects_mutation wrong-generations "uci -q set nlbwmon.@nlbwmon[0].database_generations='10'"
 assert_policy_rejects_mutation firewall-uci 'uci -q set firewall.safe=1'
 assert_policy_rejects_mutation quickstart-redirect "uci -q set luci.main.homepage='/admin/quickstart'"
+assert_policy_rejects_mutation uci-batch 'uci -q batch'
+assert_policy_rejects_mutation path-qualified-nft '/usr/sbin/nft add rule inet fw4 input accept'
+assert_policy_rejects_mutation passwall-reenable "uci -q set passwall2.@global[0].enabled='1'"
+assert_policy_rejects_mutation nlbwmon-uci-disable "uci -q set nlbwmon.@nlbwmon[0].enabled='0'"
+assert_policy_rejects_mutation harmless-extra 'true'
 
-comment_only_file="$fixture_root/safe-comment.uci-defaults"
-cp "$defaults" "$comment_only_file"
-printf '%s\n' '# no WAN rule for port 7681' >> "$comment_only_file"
-assert_first_boot_policy "$comment_only_file" || {
-  echo "comment-only safety documentation must not be treated as executable policy" >&2
+comment_file="$fixture_root/safe-comments.uci-defaults"
+sed -E 's/^exit 0$/exit 0 # port 7681 remains blocked/' "$defaults" > "$comment_file"
+printf '%s\n' '# no WAN rule for port 7681' >> "$comment_file"
+assert_first_boot_policy "$comment_file" || {
+  echo "safety comments must not be treated as executable policy" >&2
   exit 1
 }
 
