@@ -6,7 +6,7 @@ workflow="$repo_root/.github/workflows/build-re-ss-01.yml"
 metadata_script="$repo_root/.github/scripts/variant-metadata.sh"
 factory_aligner="$repo_root/.github/scripts/fix-re-ss-01-factory.sh"
 factory_fixture="$repo_root/tests/fixtures/ipq60xx.mk"
-defaults="$repo_root/files/etc/uci-defaults/zz-re-ss-01-services"
+defaults="$repo_root/files/etc/uci-defaults/99-re-ss-01-services"
 required_packages="$repo_root/.github/scripts/required-packages.sh"
 
 ruby - "$workflow" "$metadata_script" "$repo_root" <<'RUBY'
@@ -145,7 +145,7 @@ abort "missing requested package feeds step" unless custom_feeds
 abort "custom feeds must be added before feed installation" unless steps.index(custom_feeds) < feeds_index
 abort "custom feeds script is not used" unless custom_feeds["run"] == "bash .github/scripts/add-package-feeds.sh openwrt/feeds.conf.default"
 
-abort "missing last-running first-boot service defaults" unless File.file?(File.join(repo_root, "files/etc/uci-defaults/zz-re-ss-01-services"))
+abort "missing last-running first-boot service defaults" unless File.file?(File.join(repo_root, "files/etc/uci-defaults/99-re-ss-01-services"))
 abort "firmware files must be copied before configuration" unless steps.any? { |step| step["name"] == "Install RE-SS-01 defaults" }
 
 workflows = Dir.glob(File.join(repo_root, ".github/workflows/*.{yml,yaml}"))
@@ -205,6 +205,20 @@ grep -Fq "mediaurlbase='/luci-static/argon'" <<<"$defaults_text" || {
   echo "Argon must be the default LuCI theme" >&2
   exit 1
 }
+grep -Fq "QuickStart remains the first LuCI menu entry" <<<"$defaults_text" || {
+  echo "QuickStart must retain its upstream LuCI landing-page priority" >&2
+  exit 1
+}
+grep -Fq "no WAN accept rule" <<<"$defaults_text" || {
+  echo "ttyd must remain behind the existing LAN-side policy" >&2
+  exit 1
+}
+for forbidden in 'uci set network' 'uci -q set network' 'ip addr' 'swapon' 'mount ' 'config rule' '7681'; do
+  if grep -Fq "$forbidden" <<<"$defaults_text"; then
+    echo "first-boot defaults must not mutate LAN, storage, swap, or ttyd WAN policy: $forbidden" >&2
+    exit 1
+  fi
+done
 
 echo "requested packages and defaults: ok"
 

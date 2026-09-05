@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# This runs after 50_luci-quickstart. QuickStart remains the first LuCI menu entry
+# in the iStore package and therefore the landing page; do not add a competing redirect.
 # Keep optional, resource-intensive services dormant until the user configures them.
 for service in passwall2 mosdns adguardhome dockerd tailscale sqm; do
 	[ -x "/etc/init.d/$service" ] && /etc/init.d/$service disable
@@ -12,7 +14,9 @@ uci -q set adguardhome.config.enabled='0'
 # Retain three monthly traffic databases instead of the upstream default of ten.
 uci -q set nlbwmon.@nlbwmon[0].database_generations='3'
 
-# Argon is primary; luci-theme-bootstrap remains installed as the recovery theme.
+# Argon is the rendering theme for all LuCI pages; luci-theme-bootstrap remains installed
+# as the recovery theme. ttyd is reachable only through the existing LAN-side LuCI/firewall
+# policy and receives no WAN accept rule.
 uci -q set luci.themes.Argon='/luci-static/argon'
 uci -q set luci.main.mediaurlbase='/luci-static/argon'
 
