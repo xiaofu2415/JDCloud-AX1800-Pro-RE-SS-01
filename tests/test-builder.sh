@@ -210,6 +210,8 @@ echo "requested packages and defaults: ok"
 feed_script="$repo_root/.github/scripts/add-package-feeds.sh"
 argon_feeds="$fixture_root/argon-feeds.conf"
 istore_feeds="$fixture_root/istore-feeds.conf"
+stale_istore_feeds="$fixture_root/stale-istore-feeds.conf"
+duplicate_istore_feeds="$fixture_root/duplicate-istore-feeds.conf"
 unknown_feeds="$fixture_root/unknown-feeds.conf"
 
 printf '%s\n' '# test feed configuration' > "$argon_feeds"
@@ -230,6 +232,26 @@ istore_feed_lines=(
   'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main'
 )
 
+assert_exact_istore_feeds() {
+  local feeds_file="$1"
+  local actual_istore_feed_lines
+  local expected_istore_feed_lines
+
+  for line in "${istore_feed_lines[@]}"; do
+    [[ "$(grep -Fxc "$line" "$feeds_file")" -eq 1 ]] || {
+      echo "iStore feed must occur exactly once: $line" >&2
+      exit 1
+    }
+  done
+
+  actual_istore_feed_lines="$(grep -E '^src-git (istore|nas|nas_luci)[[:space:]]' "$feeds_file")"
+  expected_istore_feed_lines="$(printf '%s\n' "${istore_feed_lines[@]}")"
+  [[ "$actual_istore_feed_lines" == "$expected_istore_feed_lines" ]] || {
+    echo "iStore feeds must use the required order and exact definitions" >&2
+    exit 1
+  }
+}
+
 for feeds_file in "$argon_feeds" "$istore_feeds"; do
   for line in "${common_feed_lines[@]}"; do
     [[ "$(grep -Fxc "$line" "$feeds_file")" -eq 1 ]] || {
@@ -244,19 +266,20 @@ if grep -Eq '^src-git (istore|nas|nas_luci)[[:space:]]' "$argon_feeds"; then
   exit 1
 fi
 
-for line in "${istore_feed_lines[@]}"; do
-  [[ "$(grep -Fxc "$line" "$istore_feeds")" -eq 1 ]] || {
-    echo "iStore feed must occur exactly once: $line" >&2
-    exit 1
-  }
-done
+assert_exact_istore_feeds "$istore_feeds"
 
-actual_istore_feed_lines="$(grep -E '^src-git (istore|nas|nas_luci)[[:space:]]' "$istore_feeds")"
-expected_istore_feed_lines="$(printf '%s\n' "${istore_feed_lines[@]}")"
-[[ "$actual_istore_feed_lines" == "$expected_istore_feed_lines" ]] || {
-  echo "iStore feeds must use the required order and exact definitions" >&2
-  exit 1
-}
+printf '%s\n' \
+  '# test feed configuration' \
+  'src-git istore https://example.invalid/istore.git;legacy' \
+  'src-git nas https://example.invalid/nas-packages.git;legacy' \
+  'src-git nas_luci https://example.invalid/nas-packages-luci.git;legacy' \
+  > "$stale_istore_feeds"
+bash "$feed_script" "$stale_istore_feeds" istore
+assert_exact_istore_feeds "$stale_istore_feeds"
+
+printf '%s\n' '# test feed configuration' "${istore_feed_lines[@]}" "${istore_feed_lines[@]}" > "$duplicate_istore_feeds"
+bash "$feed_script" "$duplicate_istore_feeds" istore
+assert_exact_istore_feeds "$duplicate_istore_feeds"
 
 cp "$argon_feeds" "$fixture_root/argon-feeds-once.conf"
 cp "$istore_feeds" "$fixture_root/istore-feeds-once.conf"
@@ -272,10 +295,15 @@ cmp -s "$istore_feeds" "$fixture_root/istore-feeds-once.conf" || {
 }
 
 cp "$unknown_feeds" "$fixture_root/unknown-feeds-before.conf"
-if bash "$feed_script" "$unknown_feeds" unknown; then
+unknown_variant_stderr="$fixture_root/unknown-variant.stderr"
+if bash "$feed_script" "$unknown_feeds" unknown 2> "$unknown_variant_stderr"; then
   echo "unknown feed variant must fail" >&2
   exit 1
 fi
+[[ "$(< "$unknown_variant_stderr")" == 'unknown feed variant: unknown' ]] || {
+  echo "unknown feed variant error must be exact" >&2
+  exit 1
+}
 cmp -s "$unknown_feeds" "$fixture_root/unknown-feeds-before.conf" || {
   echo "unknown feed variant must not modify the feed file" >&2
   exit 1
