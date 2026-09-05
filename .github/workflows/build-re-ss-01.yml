@@ -60,11 +60,17 @@ jobs:
           restore-keys: |
             re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-
 
+      - name: Add requested package feeds
+        run: bash .github/scripts/add-package-feeds.sh openwrt/feeds.conf.default
+
       - name: Install feeds
         working-directory: openwrt
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+
+      - name: Install RE-SS-01 defaults
+        run: cp -a files/. openwrt/files/
 
       - name: Load RE-SS-01 configuration
         working-directory: openwrt
@@ -72,6 +78,19 @@ jobs:
           cp "$GITHUB_WORKSPACE/$CONFIG_FILE" .config
           make defconfig
           ./scripts/diffconfig.sh
+
+      - name: Verify requested packages
+        working-directory: openwrt
+        run: |
+          for package in \
+            luci-app-passwall2 luci-app-mosdns luci-app-adguardhome \
+            luci-app-nlbwmon luci-app-dockerman tailscale luci-app-sqm \
+            sqm-scripts-nss luci-theme-argon luci-theme-bootstrap; do
+            grep -qx "CONFIG_PACKAGE_${package}=y" .config || {
+              echo "Missing requested package: ${package}" >&2
+              exit 1
+            }
+          done
 
       - name: Download source packages
         run: |
@@ -112,5 +131,5 @@ jobs:
           gh release create "$release_tag" output/* \
             --repo "$GITHUB_REPOSITORY" \
             --title "JDCloud RE-SS-01 build ${GITHUB_RUN_NUMBER}" \
-            --notes "Source: LiBwrt/LibWrt ${SOURCE_BRANCH} (${SOURCE_COMMIT}). RE-SS-01 factory rootfs padded to 64 KiB for eMMC flashing." \
+            --notes "Source: LiBwrt/LibWrt ${SOURCE_BRANCH} (${SOURCE_COMMIT}). Includes PassWall2 (Xray), MosDNS, AdGuard Home, nlbwmon, Docker manager, Tailscale, NSS SQM and Argon. RE-SS-01 factory rootfs padded to 64 KiB for eMMC flashing." \
             --latest=false

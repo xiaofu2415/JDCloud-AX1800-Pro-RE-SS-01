@@ -1,0 +1,25 @@
+#!/bin/sh
+
+# Keep optional, resource-intensive services dormant until the user configures them.
+for service in passwall2 mosdns adguardhome dockerd tailscale sqm; do
+	[ -x "/etc/init.d/$service" ] && /etc/init.d/$service disable
+done
+
+uci -q set passwall2.@global[0].enabled='0'
+uci -q set mosdns.config.enabled='0'
+uci -q set adguardhome.config.enabled='0'
+
+# Retain three monthly traffic databases instead of the upstream default of ten.
+uci -q set nlbwmon.@nlbwmon[0].database_generations='3'
+
+# Argon is primary; luci-theme-bootstrap remains installed as the recovery theme.
+uci -q set luci.themes.Argon='/luci-static/argon'
+uci -q set luci.main.mediaurlbase='/luci-static/argon'
+
+uci -q commit passwall2
+uci -q commit mosdns
+uci -q commit adguardhome
+uci -q commit nlbwmon
+uci -q commit luci
+
+exit 0

@@ -32,6 +32,18 @@
 
 基础差异配置位于 `configs/jdcloud-re-ss-01.config`。首次应先验证最小配置能稳定生成并启动固件，再逐项增加软件包。
 
+当前增强版预装：
+
+- PassWall2（Xray 核心、nftables 透明代理）
+- MosDNS、AdGuard Home
+- nlbwmon 网络流量统计（保留 3 期数据库）
+- Docker 与 LuCI 管理页面
+- Tailscale
+- SQM、LuCI 管理页面与 NSS SQM 脚本
+- Argon 默认主题、Bootstrap 备用主题、简体中文界面
+
+PassWall2、MosDNS、AdGuard Home、Docker、Tailscale 和 SQM 首次启动时保持关闭，避免尚未配置时争抢端口或占用内存。nlbwmon 默认运行。Docker 数据目录仍需在刷机后确认并挂载数据盘，再单独启用。
+
 ## 本地检查
 
 ```bash

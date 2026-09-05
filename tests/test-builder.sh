@@ -6,6 +6,7 @@ workflow="$repo_root/.github/workflows/build-re-ss-01.yml"
 config="$repo_root/configs/jdcloud-re-ss-01.config"
 factory_aligner="$repo_root/.github/scripts/fix-re-ss-01-factory.sh"
 factory_fixture="$repo_root/tests/fixtures/ipq60xx.mk"
+defaults="$repo_root/files/etc/uci-defaults/zz-re-ss-01-services"
 
 ruby - "$workflow" "$config" "$repo_root" <<'RUBY'
 require "yaml"
@@ -58,6 +59,33 @@ expected_device = "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=y"
 abort "config must select only RE-SS-01" unless selected_devices == [expected_device]
 abort "ccache must be enabled" unless config.include?("CONFIG_CCACHE=y")
 
+required_packages = %w[
+  CONFIG_PACKAGE_luci-app-passwall2=y
+  CONFIG_PACKAGE_luci-app-mosdns=y
+  CONFIG_PACKAGE_luci-app-adguardhome=y
+  CONFIG_PACKAGE_luci-app-nlbwmon=y
+  CONFIG_PACKAGE_luci-app-dockerman=y
+  CONFIG_PACKAGE_tailscale=y
+  CONFIG_PACKAGE_luci-app-sqm=y
+  CONFIG_PACKAGE_sqm-scripts-nss=y
+  CONFIG_PACKAGE_luci-theme-argon=y
+  CONFIG_PACKAGE_luci-theme-bootstrap=y
+]
+missing_packages = required_packages.reject { |entry| config.include?(entry) }
+abort "missing requested packages: #{missing_packages.join(', ')}" unless missing_packages.empty?
+
+abort "PassWall2 must use Xray core" unless config.include?("CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_Xray=y")
+abort "PassWall2 must use nftables" unless config.include?("CONFIG_PACKAGE_luci-app-passwall2_Nftables_Transparent_Proxy=y")
+abort "PassWall2 all-core bundle must stay disabled" unless config.include?("# CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_All is not set")
+
+custom_feeds = steps.find { |step| step["name"] == "Add requested package feeds" }
+abort "missing requested package feeds step" unless custom_feeds
+abort "custom feeds must be added before feed installation" unless steps.index(custom_feeds) < feeds_index
+abort "custom feeds script is not used" unless custom_feeds["run"] == "bash .github/scripts/add-package-feeds.sh openwrt/feeds.conf.default"
+
+abort "missing last-running first-boot service defaults" unless File.file?(File.join(repo_root, "files/etc/uci-defaults/zz-re-ss-01-services"))
+abort "firmware files must be copied before configuration" unless steps.any? { |step| step["name"] == "Install RE-SS-01 defaults" }
+
 workflows = Dir.glob(File.join(repo_root, ".github/workflows/*.{yml,yaml}"))
 abort "legacy workflows still present" unless workflows == [workflow_path]
 
@@ -97,3 +125,23 @@ abort "neighbor fixture definition changed" unless neighbor&.include?("append-ro
 RUBY
 
 echo "factory alignment transform: ok"
+
+defaults_text="$(sed -n '1,240p' "$defaults")"
+grep -Fq "for service in passwall2 mosdns adguardhome dockerd tailscale sqm" <<<"$defaults_text" || {
+  echo "all optional services must be covered by the first-boot policy" >&2
+  exit 1
+}
+grep -Fq '/etc/init.d/$service disable' <<<"$defaults_text" || {
+  echo "optional services must be disabled on first boot" >&2
+  exit 1
+}
+grep -Fq "database_generations='3'" <<<"$defaults_text" || {
+  echo "nlbwmon history must be limited to three generations" >&2
+  exit 1
+}
+grep -Fq "mediaurlbase='/luci-static/argon'" <<<"$defaults_text" || {
+  echo "Argon must be the default LuCI theme" >&2
+  exit 1
+}
+
+echo "requested packages and defaults: ok"
