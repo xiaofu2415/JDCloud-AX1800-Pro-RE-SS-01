@@ -31,6 +31,16 @@ end
 require_match = lambda do |path, pattern, label|
   abort "#{path} must document #{label}" unless read.call(path).match?(pattern)
 end
+factory_sysupgrade_contract = lambda do |text|
+  text.include?("- `squashfs-factory.bin`：用于已经验证过的 U-Boot Web 首次刷写或恢复路径。") &&
+    text.include?("- `squashfs-sysupgrade.bin`：只用于已经运行兼容 LibWrt/OpenWrt、且确认分区布局匹配时，通过 LuCI 或命令行升级。")
+end
+istore_not_latest_contract = lambda do |text|
+  text.include?("iStoreOS Dashboard beta 永远是 Prerelease，且必须显式设置为非 Latest。")
+end
+physical_merge_gate_contract = lambda do |text|
+  text.include?("即使 beta 编译成功，也必须完成真机硬件验证后，才允许合并到 `main`。")
+end
 
 readme = read.call("README.md")
 abort "README title must be exact" unless readme.lines.first&.chomp == "# 京东云 AX1800 PRO（RE-SS-01）"
@@ -46,7 +56,7 @@ require_match.call("docs/VARIANTS.md", /QuickStart.{0,40}(首页|落地页)/i, "
 require_match.call("docs/VARIANTS.md", /Argon.{0,60}(标准|普通).{0,20}LuCI|标准 LuCI.{0,40}Argon/i, "Argon for standard LuCI pages")
 require_match.call("docs/BUILD.md", /variant.{0,40}(argon|istore)/i, "manual variant choice")
 require_match.call("docs/BUILD.md", /(重建|重新构建).{0,50}(同一|相同).{0,20}(版本|Release).{0,50}(更新|提升|递增).{0,20}版本|版本.{0,50}(更新|提升|递增).{0,50}(重建|重新构建)/i, "a version bump before rebuilding the same release")
-require_match.call("docs/FLASHING.md", /factory.{0,120}sysupgrade|sysupgrade.{0,120}factory/i, "factory and sysupgrade differences")
+abort "docs/FLASHING.md must document factory and sysupgrade differences" unless factory_sysupgrade_contract.call(read.call("docs/FLASHING.md"))
 require_match.call("docs/FLASHING.md", /SHA-256/i, "SHA-256 verification")
 require_text.call("docs/FLASHING.md", "re-ss-01-4-1", "the migration recovery baseline")
 %w[re-ss-01-argon-v1.0.0 re-ss-01-istore-v0.1.0-beta.1].each do |tag|
@@ -61,7 +71,7 @@ end
   require_text.call("docs/RELEASES.md", filename, "exact release filename #{filename}")
 end
 require_match.call("docs/RELEASES.md", /Latest.{0,100}Argon|Argon.{0,100}Latest/i, "Argon Latest policy")
-require_match.call("docs/RELEASES.md", /(Prerelease|预发布).{0,100}iStore|iStore.{0,100}(Prerelease|预发布)/i, "iStore prerelease policy")
+abort "docs/RELEASES.md must document iStore prerelease policy" unless istore_not_latest_contract.call(read.call("docs/RELEASES.md"))
 
 require_match.call("SECURITY.md", /(不预置|不提供|没有).{0,30}(默认|初始).{0,20}(凭据|密码|账户)/, "no default credentials")
 require_match.call("SECURITY.md", /ttyd.{0,80}(不新增|不开放|没有).{0,30}WAN/i, "no ttyd WAN firewall opening")
@@ -74,8 +84,33 @@ require_text.call("README.md", disclaimer, "the unofficial firmware disclaimer")
 require_match.call("README.md", /Argon.{0,80}(稳定推荐|推荐).{0,80}(beta|测试).{0,40}(真机|硬件).{0,20}(验证|验收)/i, "Argon as the stable recommendation until beta hardware validation")
 require_match.call("docs/VARIANTS.md", /iStore.{0,60}(应用|软件).{0,60}(不保证|无法保证).{0,80}(兼容|可用).{0,80}LibWrt 25\.12/i, "the iStore application compatibility warning")
 require_match.call("docs/BUILD.md", /(不会|不).{0,20}(自动刷|自动写入).{0,50}(不会|不).{0,20}(上传|传出).{0,30}(路由器|设备).{0,20}数据/, "no auto-flash or router data upload")
-require_match.call("docs/BUILD.md", /(beta|测试).{0,30}(构建|编译).{0,30}(成功|完成).{0,80}(真机|硬件).{0,30}(验证|验收).{0,80}(合并|merge).{0,20}`main`/i, "physical validation before merging")
+abort "docs/BUILD.md must document physical validation before merging" unless physical_merge_gate_contract.call(read.call("docs/BUILD.md"))
 
+flashing = read.call("docs/FLASHING.md")
+without_image_purposes = flashing
+  .sub("- `squashfs-factory.bin`：用于已经验证过的 U-Boot Web 首次刷写或恢复路径。", "- `squashfs-factory.bin`：用途未说明。")
+  .sub("- `squashfs-sysupgrade.bin`：只用于已经运行兼容 LibWrt/OpenWrt、且确认分区布局匹配时，通过 LuCI 或命令行升级。", "- `squashfs-sysupgrade.bin`：用途未说明。")
+releases = read.call("docs/RELEASES.md")
+without_istore_not_latest = releases
+  .gsub("Prerelease，永不为 Latest", "Prerelease")
+  .gsub("iStoreOS Dashboard beta 永远是 Prerelease，且必须显式设置为非 Latest。", "iStoreOS Dashboard beta 是 Prerelease。")
+build = read.call("docs/BUILD.md")
+inverted_physical_gate = build.sub(
+  "即使 beta 编译成功，也必须完成真机硬件验证后，才允许合并到 `main`。",
+  "即使 beta 编译成功，也允许在没有完成真机硬件验证时合并到 `main`。"
+)
+abort "factory/sysupgrade mutation fixture did not change the document" if without_image_purposes == flashing
+abort "iStore not-Latest mutation fixture did not change the document" if without_istore_not_latest == releases
+abort "physical merge gate mutation fixture did not change the document" if inverted_physical_gate == build
+
+accepted_mutations = {
+  "factory/sysupgrade purposes removed" => factory_sysupgrade_contract.call(without_image_purposes),
+  "iStore not-Latest rule removed" => istore_not_latest_contract.call(without_istore_not_latest),
+  "physical validation gate inverted" => physical_merge_gate_contract.call(inverted_physical_gate)
+}.select { |_name, accepted| accepted }.keys
+abort "documentation contracts accepted forbidden mutations: #{accepted_mutations.join(', ')}" unless accepted_mutations.empty?
+
+puts "documentation mutation guards: ok"
 puts "documentation contracts: ok"
 RUBY
 
