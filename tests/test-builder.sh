@@ -53,6 +53,11 @@ cache_index = steps.index(cache)
 feeds_index = steps.index { |step| step["name"] == "Install feeds" }
 abort "cache must restore after clone and before feeds" unless cache_index > alignment_index && cache_index < feeds_index
 
+feeds_install = steps.fetch(feeds_index).fetch("run")
+mosdns_install_index = feeds_install.index("./scripts/feeds install -p mosdns -a")
+all_feeds_install_index = feeds_install.index("./scripts/feeds install -a")
+abort "MosDNS feed must be installed before the general feeds" unless mosdns_install_index && all_feeds_install_index && mosdns_install_index < all_feeds_install_index
+
 config = File.readlines(config_path, chomp: true)
 selected_devices = config.grep(/^CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_.+=y$/)
 expected_device = "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=y"

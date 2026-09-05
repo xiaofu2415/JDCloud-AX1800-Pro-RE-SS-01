@@ -67,6 +67,7 @@ jobs:
         working-directory: openwrt
         run: |
           ./scripts/feeds update -a
+          ./scripts/feeds install -p mosdns -a
           ./scripts/feeds install -a
 
       - name: Install RE-SS-01 defaults
