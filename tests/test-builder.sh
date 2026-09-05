@@ -3,17 +3,83 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 workflow="$repo_root/.github/workflows/build-re-ss-01.yml"
-config="$repo_root/configs/jdcloud-re-ss-01.config"
+metadata_script="$repo_root/.github/scripts/variant-metadata.sh"
 factory_aligner="$repo_root/.github/scripts/fix-re-ss-01-factory.sh"
 factory_fixture="$repo_root/tests/fixtures/ipq60xx.mk"
 defaults="$repo_root/files/etc/uci-defaults/zz-re-ss-01-services"
 
-ruby - "$workflow" "$config" "$repo_root" <<'RUBY'
+ruby - "$workflow" "$metadata_script" "$repo_root" <<'RUBY'
 require "yaml"
+require "open3"
+require "tmpdir"
 
-workflow_path, config_path, repo_root = ARGV
+workflow_path, metadata_script, repo_root = ARGV
 abort "missing RE-SS-01 workflow" unless File.file?(workflow_path)
-abort "missing RE-SS-01 config" unless File.file?(config_path)
+abort "missing variant metadata script" unless File.file?(metadata_script)
+abort "variant metadata script must be executable" unless File.executable?(metadata_script)
+
+variants = {
+  "argon" => {
+    "config" => "configs/re-ss-01-argon.config",
+    "version" => "1.0.0",
+    "tag" => "re-ss-01-argon-v1.0.0",
+    "artifact_name" => "jdcloud-re-ss-01-libwrt-argon-v1.0.0",
+    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· Argon v1.0.0",
+    "prerelease" => "false"
+  },
+  "istore" => {
+    "config" => "configs/re-ss-01-istore.config",
+    "version" => "0.1.0-beta.1",
+    "tag" => "re-ss-01-istore-v0.1.0-beta.1",
+    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.1",
+    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.1",
+    "prerelease" => "true"
+  }
+}
+
+common_packages = %w[
+  CONFIG_PACKAGE_luci-app-passwall2=y
+  CONFIG_PACKAGE_luci-app-mosdns=y
+  CONFIG_PACKAGE_luci-app-adguardhome=y
+  CONFIG_PACKAGE_luci-app-nlbwmon=y
+  CONFIG_PACKAGE_luci-app-dockerman=y
+  CONFIG_PACKAGE_tailscale=y
+  CONFIG_PACKAGE_luci-app-sqm=y
+  CONFIG_PACKAGE_sqm-scripts-nss=y
+  CONFIG_PACKAGE_luci-theme-argon=y
+  CONFIG_PACKAGE_luci-theme-bootstrap=y
+]
+
+variants.each do |variant, expected|
+  config_path = File.join(repo_root, expected.fetch("config"))
+  abort "missing #{variant} config" unless File.file?(config_path)
+  abort "missing #{variant} version" unless File.read(File.join(repo_root, "versions", "#{variant}.version")).strip == expected.fetch("version")
+
+  config = File.readlines(config_path, chomp: true)
+  selected_devices = config.grep(/^CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_.+=y$/)
+  expected_device = "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=y"
+  abort "#{variant} config must select only RE-SS-01" unless selected_devices == [expected_device]
+  missing_packages = common_packages.reject { |entry| config.include?(entry) }
+  abort "#{variant} config missing common packages: #{missing_packages.join(', ')}" unless missing_packages.empty?
+
+  output, status = Dir.mktmpdir do |directory|
+    Open3.capture2e(metadata_script, variant, chdir: directory)
+  end
+  abort "#{variant} metadata failed: #{output}" unless status.success?
+  expected_output = [
+    "variant=#{variant}",
+    "config_file=#{expected.fetch('config')}",
+    "version=#{expected.fetch('version')}",
+    "tag=#{expected.fetch('tag')}",
+    "artifact_name=#{expected.fetch('artifact_name')}",
+    "release_title=#{expected.fetch('release_title')}",
+    "prerelease=#{expected.fetch('prerelease')}"
+  ].join("\n") + "\n"
+  abort "#{variant} metadata output is not exact" unless output == expected_output
+end
+
+invalid_output, invalid_status = Open3.capture2e(metadata_script, "invalid")
+abort "unknown variant must exit 2" unless invalid_status.exitstatus == 2
 
 workflow = YAML.safe_load(File.read(workflow_path), aliases: true)
 abort "workflow must be manually triggered" unless workflow.dig("on", "workflow_dispatch") == {}
@@ -23,7 +89,6 @@ abort "release job needs contents: write" unless workflow.dig("permissions", "co
 env = workflow.fetch("env")
 abort "wrong upstream source" unless env["SOURCE_REPOSITORY"] == "https://github.com/LiBwrt/LibWrt.git"
 abort "wrong upstream branch" unless env["SOURCE_BRANCH"] == "25.12-nss"
-abort "wrong config path" unless env["CONFIG_FILE"] == "configs/jdcloud-re-ss-01.config"
 
 steps = workflow.dig("jobs", "build", "steps")
 checkout = steps.find { |step| step["uses"] == "actions/checkout@v4" }
@@ -58,30 +123,11 @@ mosdns_install_index = feeds_install.index("./scripts/feeds install -p mosdns -a
 all_feeds_install_index = feeds_install.index("./scripts/feeds install -a")
 abort "MosDNS feed must be installed before the general feeds" unless mosdns_install_index && all_feeds_install_index && mosdns_install_index < all_feeds_install_index
 
-config = File.readlines(config_path, chomp: true)
-selected_devices = config.grep(/^CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_.+=y$/)
-expected_device = "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=y"
-abort "config must select only RE-SS-01" unless selected_devices == [expected_device]
-abort "ccache must be enabled" unless config.include?("CONFIG_CCACHE=y")
-
-required_packages = %w[
-  CONFIG_PACKAGE_luci-app-passwall2=y
-  CONFIG_PACKAGE_luci-app-mosdns=y
-  CONFIG_PACKAGE_luci-app-adguardhome=y
-  CONFIG_PACKAGE_luci-app-nlbwmon=y
-  CONFIG_PACKAGE_luci-app-dockerman=y
-  CONFIG_PACKAGE_tailscale=y
-  CONFIG_PACKAGE_luci-app-sqm=y
-  CONFIG_PACKAGE_sqm-scripts-nss=y
-  CONFIG_PACKAGE_luci-theme-argon=y
-  CONFIG_PACKAGE_luci-theme-bootstrap=y
-]
-missing_packages = required_packages.reject { |entry| config.include?(entry) }
-abort "missing requested packages: #{missing_packages.join(', ')}" unless missing_packages.empty?
-
-abort "PassWall2 must use Xray core" unless config.include?("CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_Xray=y")
-abort "PassWall2 must use nftables" unless config.include?("CONFIG_PACKAGE_luci-app-passwall2_Nftables_Transparent_Proxy=y")
-abort "PassWall2 all-core bundle must stay disabled" unless config.include?("# CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_All is not set")
+argon_config = File.readlines(File.join(repo_root, variants.fetch("argon").fetch("config")), chomp: true)
+abort "ccache must be enabled" unless argon_config.include?("CONFIG_CCACHE=y")
+abort "PassWall2 must use Xray core" unless argon_config.include?("CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_Xray=y")
+abort "PassWall2 must use nftables" unless argon_config.include?("CONFIG_PACKAGE_luci-app-passwall2_Nftables_Transparent_Proxy=y")
+abort "PassWall2 all-core bundle must stay disabled" unless argon_config.include?("# CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_All is not set")
 
 custom_feeds = steps.find { |step| step["name"] == "Add requested package feeds" }
 abort "missing requested package feeds step" unless custom_feeds
