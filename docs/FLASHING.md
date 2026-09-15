@@ -33,9 +33,9 @@ shasum -a 256 -c SHA256SUMS
 
 ## 迁移与恢复基线
 
-旧 Release `re-ss-01-4-1` 是本项目迁移前的恢复基线，应保留，不要删除。当前稳定推荐是已刷入并验证过的 Argon `1.0.0`；iStore `0.1.0-beta.1` 在完整真机验收前仍是 beta。
+旧 Release `re-ss-01-4-1` 是本项目迁移前的恢复基线，应保留，不要删除。当前稳定推荐是已刷入并验证过的 Argon `1.0.0`；iStore `0.1.0-beta.2` 在完整真机验收前仍是 beta。不要再刷写 `0.1.0-beta.1`，该版本可能在配置并重启后失去 DHCP、ARP、LAN 与管理后台连接。
 
-若 iStore beta 无法启动、管理页面异常或基础网络失效，请保留失败信息，通过已验证的 U-Boot Web 恢复路径刷回 Argon factory 镜像。QuickStart 单独异常时，可先尝试标准 LuCI 状态页 `/cgi-bin/luci/admin/status/overview`；其他页面仍由 Argon 提供，必要时可使用 Bootstrap 恢复主题。
+若 iStore beta 无法启动、管理页面异常或基础网络失效，请保留失败信息，通过已验证的 U-Boot Web 恢复路径刷回 Argon factory 镜像。QuickStart 单独异常时，可先尝试标准 LuCI 状态页 `/cgi-bin/luci/admin/status/overview`；其他页面仍由 Argon 提供，必要时可使用 Bootstrap 恢复主题。`beta.2` 中不要使用 QuickStart 网络向导，LAN、WAN、DHCP 和无线统一从标准 LuCI 配置。
 
 ## 刷后检查
 

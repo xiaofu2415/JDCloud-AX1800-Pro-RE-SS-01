@@ -14,6 +14,7 @@
 - iStore 变体包含 `luci-app-ttyd`，但 ttyd 不新增任何 WAN 防火墙开放规则。它只计划供 LAN 侧通过 LuCI 使用，WAN 不可访问仍须在真机验收中验证。
 - 固件不会自动启用 PassWall2、MosDNS、AdGuard Home、Docker、Tailscale 或 SQM，避免未配置服务抢占端口或产生意外暴露。
 - 固件不会改变 LAN 默认地址，不会自动挂载 `storage` 或启用 swap。
+- iStore `beta.2` 会在构建阶段禁用 QuickStart 的 `startdhns` 自动改网服务和 WAN 事件钩子。QuickStart 网络向导不属于本设备支持的配置入口；请使用标准 LuCI 管理网络。
 
 ## 构建与数据边界
 
@@ -23,7 +24,7 @@ GitHub Actions 只克隆公开源码、读取仓库配置、编译并发布产�
 
 ## beta 验收门槛
 
-iStore `0.1.0-beta.1` 是 Prerelease，不能标记为 Latest。云编译通过不代表安全边界已经在设备上成立；必须在 RE-SS-01 真机上验证 root 密码、LuCI、SSH、ttyd LAN/WAN 隔离、默认服务状态、重启和断电重启。在这些物理检查完成前，不得合并到 `main`，Argon `1.0.0` 仍是稳定推荐。
+iStore `0.1.0-beta.2` 是 Prerelease，不能标记为 Latest。云编译通过不代表安全边界已经在设备上成立；必须在 RE-SS-01 真机上验证 root 密码、LuCI、SSH、ttyd LAN/WAN 隔离、默认服务状态、重启和断电重启。在这些物理检查完成前，不得合并到 `main`，Argon `1.0.0` 仍是稳定推荐。
 
 ## 报告问题
 

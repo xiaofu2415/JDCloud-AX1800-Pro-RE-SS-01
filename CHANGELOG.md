@@ -2,6 +2,13 @@
 
 本文件按产品版本记录用户可见变化。Argon 与 iStoreOS Dashboard 使用独立版本线。
 
+## 0.1.0-beta.2
+
+- 禁用 QuickStart 的 `startdhns` 自动改网服务及 WAN 接口事件钩子，避免开机或网络重载时改写 RE-SS-01 的 LAN、WAN 与 DHCP 配置。
+- 保留 QuickStart Dashboard、iStore 软件中心、Argon 标准 LuCI 页面和 LAN 侧 Web 终端。
+- 网络配置统一交给标准 LuCI；QuickStart 网络向导在此设备上不受支持。
+- `0.1.0-beta.1` 已出现重启后 DHCP、ARP、LAN 和管理后台网络失效，停止推荐并保留为问题复现记录。
+
 ## 0.1.0-beta.1
 
 - 首个 iStoreOS Dashboard 实验版本。

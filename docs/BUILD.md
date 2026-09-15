@@ -19,9 +19,9 @@
 当前版本文件分别为：
 
 - Argon：`versions/argon.version`，当前 `1.0.0`
-- iStore：`versions/istore.version`，当前 `0.1.0-beta.1`
+- iStore：`versions/istore.version`，当前 `0.1.0-beta.2`
 
-重建同一 Release 前必须先更新对应的版本文件，并提交该版本变更。不得重复使用已有产品版本覆盖 Release；工作流发现精确标签已经存在时，会在安装依赖和编译之前失败。修复后重新发布时应递增版本，例如从 `0.1.0-beta.1` 更新为下一个 beta，而不是删除旧标签后重用版本号。
+重建同一 Release 前必须先更新对应的版本文件，并提交该版本变更。不得重复使用已有产品版本覆盖 Release；工作流发现精确标签已经存在时，会在安装依赖和编译之前失败。修复后重新发布时应递增版本，例如从 `0.1.0-beta.2` 更新为下一个 beta，而不是删除旧标签后重用版本号。
 
 ## 构建过程与产物
 
@@ -31,9 +31,10 @@
 2. 拒绝已经存在的产品版本标签。
 3. 克隆当时最新的 `25.12-nss` 提交并记录源码提交号。
 4. 安装公共 feed；只为 `istore` 加入固定的 iStore 与 QuickStart feed。
-5. 载入所选配置并在 `make defconfig` 后验证必需包。
-6. 编译、执行 RE-SS-01 factory 64 KiB 对齐、收集并校验发布文件。
-7. 生成 `BUILD-METADATA.txt` 与 `SHA256SUMS`，然后按变体发布。
+5. 仅对 `istore` 禁用 QuickStart 的自动改网服务与 WAN 事件钩子；若上游实现发生未知变化则停止构建。
+6. 载入所选配置并在 `make defconfig` 后验证必需包。
+7. 编译、执行 RE-SS-01 factory 64 KiB 对齐、收集并校验发布文件。
+8. 生成 `BUILD-METADATA.txt` 与 `SHA256SUMS`，然后按变体发布。
 
 Artifact 保留已校验的 factory、sysupgrade、initramfs、manifest、`profiles.json`、`build.config`、构建元数据和 SHA-256 清单。实际源代码提交号与构建仓库提交号都写入构建元数据及 Release 说明。
 

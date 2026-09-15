@@ -9,6 +9,8 @@ factory_fixture="$repo_root/tests/fixtures/ipq60xx.mk"
 defaults="$repo_root/files/etc/uci-defaults/99-re-ss-01-services"
 required_packages="$repo_root/.github/scripts/required-packages.sh"
 
+bash "$repo_root/tests/test-quickstart-hardening.sh"
+
 ruby - "$repo_root" <<'RUBY'
 repo = ARGV.fetch(0)
 paths = %w[
@@ -50,7 +52,8 @@ require_text.call("README.md", "https://github.com/xiaofu2415/JDCloud-AX1800-Pro
 end
 require_text.call("README.md", "SECURITY.md", "the SECURITY guide link")
 require_match.call("README.md", /Argon.{0,40}`1\.0\.0`.{0,40}(稳定|stable)/i, "Argon 1.0.0 as stable")
-require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.1`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.1 as beta")
+require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.2`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.2 as beta")
+require_match.call("README.md", /QuickStart.{0,80}(自动改网|自动修改网络).{0,80}(关闭|禁用)/i, "disabled QuickStart automatic network mutation")
 
 require_match.call("docs/VARIANTS.md", /QuickStart.{0,40}(首页|落地页)/i, "QuickStart as the iStore landing page")
 require_match.call("docs/VARIANTS.md", /Argon.{0,60}(标准|普通).{0,20}LuCI|标准 LuCI.{0,40}Argon/i, "Argon for standard LuCI pages")
@@ -59,14 +62,14 @@ require_match.call("docs/BUILD.md", /(重建|重新构建).{0,50}(同一|相同)
 abort "docs/FLASHING.md must document factory and sysupgrade differences" unless factory_sysupgrade_contract.call(read.call("docs/FLASHING.md"))
 require_match.call("docs/FLASHING.md", /SHA-256/i, "SHA-256 verification")
 require_text.call("docs/FLASHING.md", "re-ss-01-4-1", "the migration recovery baseline")
-%w[re-ss-01-argon-v1.0.0 re-ss-01-istore-v0.1.0-beta.1].each do |tag|
+%w[re-ss-01-argon-v1.0.0 re-ss-01-istore-v0.1.0-beta.2].each do |tag|
   require_text.call("docs/RELEASES.md", tag, "exact release tag #{tag}")
 end
 %w[
   jdcloud-re-ss-01-libwrt-argon-v1.0.0-squashfs-factory.bin
   jdcloud-re-ss-01-libwrt-argon-v1.0.0-squashfs-sysupgrade.bin
-  jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.1-squashfs-factory.bin
-  jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.1-squashfs-sysupgrade.bin
+  jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.2-squashfs-factory.bin
+  jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.2-squashfs-sysupgrade.bin
 ].each do |filename|
   require_text.call("docs/RELEASES.md", filename, "exact release filename #{filename}")
 end
@@ -77,7 +80,8 @@ require_match.call("SECURITY.md", /(不预置|不提供|没有).{0,30}(默认|�
 require_match.call("SECURITY.md", /ttyd.{0,80}(不新增|不开放|没有).{0,30}WAN/i, "no ttyd WAN firewall opening")
 require_match.call("SECURITY.md", /(必须|务必).{0,20}(设置|修改).{0,20}root.{0,10}密码|root.{0,10}密码.{0,20}(必须|务必)/i, "the root-password requirement")
 require_text.call("CHANGELOG.md", "## 1.0.0", "the 1.0.0 entry")
-require_text.call("CHANGELOG.md", "## 0.1.0-beta.1", "the 0.1.0-beta.1 entry")
+require_text.call("CHANGELOG.md", "## 0.1.0-beta.2", "the 0.1.0-beta.2 entry")
+require_match.call("CHANGELOG.md", /0\.1\.0-beta\.1.{0,160}(停止推荐|不再推荐|网络失效)/mi, "the withdrawn beta.1 warning")
 
 disclaimer = "本项目不是京东云、LibWrt 或 iStoreOS 的官方固件"
 require_text.call("README.md", disclaimer, "the unofficial firmware disclaimer")
@@ -135,10 +139,10 @@ variants = {
   },
   "istore" => {
     "config" => "configs/re-ss-01-istore.config",
-    "version" => "0.1.0-beta.1",
-    "tag" => "re-ss-01-istore-v0.1.0-beta.1",
-    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.1",
-    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.1",
+    "version" => "0.1.0-beta.2",
+    "tag" => "re-ss-01-istore-v0.1.0-beta.2",
+    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.2",
+    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.2",
     "prerelease" => "true"
   }
 }
@@ -280,6 +284,17 @@ abort "missing requested package feeds step" unless custom_feeds
 abort "custom feeds must be added before feed installation" unless steps.index(custom_feeds) < feeds_index
 abort "custom feeds script must receive selected variant" unless custom_feeds["run"] == 'bash .github/scripts/add-package-feeds.sh openwrt/feeds.conf.default "${{ steps.variant.outputs.variant }}"'
 
+hardening = step_named.call("Harden QuickStart network integration")
+expected_hardening = <<~'SHELL'.strip
+  if [[ "${{ steps.variant.outputs.variant }}" == "istore" ]]; then
+    bash .github/scripts/harden-quickstart-network.sh openwrt/feeds/nas/network/services/quickstart
+  fi
+SHELL
+abort "QuickStart hardening must be limited to the iStore variant" unless hardening["run"].strip == expected_hardening
+abort "QuickStart must be hardened after feed installation and before firmware defaults are copied" unless
+  steps.index(step_named.call("Install feeds")) < steps.index(hardening) &&
+  steps.index(hardening) < steps.index(step_named.call("Install RE-SS-01 defaults"))
+
 prepare = step_named.call("Prepare RE-SS-01 release")
 verify = step_named.call("Verify RE-SS-01 release")
 prepare_call = 'bash .github/scripts/prepare-release.sh openwrt/bin/targets/qualcommax/ipq60xx output "${{ steps.variant.outputs.variant }}" "${{ steps.variant.outputs.version }}" "${{ steps.source.outputs.commit }}" "${{ github.sha }}" "${{ steps.variant.outputs.config_file }}"'
@@ -357,16 +372,16 @@ Dir.mktmpdir("workflow-contract-") do |directory|
   end
 
   # A missing exact tag passes; a same-prefix tag must not be a collision.
-  {"" => true, "refs/tags/re-ss-01-istore-v0.1.0-beta.1-extra" => true,
-   "refs/tags/re-ss-01-istore-v0.1.0-beta.1" => false}.each do |refs, success|
+  {"" => true, "refs/tags/re-ss-01-istore-v0.1.0-beta.2-extra" => true,
+   "refs/tags/re-ss-01-istore-v0.1.0-beta.2" => false}.each do |refs, success|
     shell = <<~'SHELL'
       gh() {
-        [[ "$*" == "api repos/owner/repo/git/matching-refs/tags/re-ss-01-istore-v0.1.0-beta.1 --jq .[].ref" ]] || return 97
+        [[ "$*" == "api repos/owner/repo/git/matching-refs/tags/re-ss-01-istore-v0.1.0-beta.2 --jq .[].ref" ]] || return 97
         printf '%s\n' "$TEST_REFS"
       }
     SHELL
     shell += tag_check.fetch("run")
-    output, status = Open3.capture2e({"TEST_REFS" => refs, "RELEASE_TAG" => "re-ss-01-istore-v0.1.0-beta.1", "GITHUB_REPOSITORY" => "owner/repo"}, "bash", "-euo", "pipefail", "-c", shell)
+    output, status = Open3.capture2e({"TEST_REFS" => refs, "RELEASE_TAG" => "re-ss-01-istore-v0.1.0-beta.2", "GITHUB_REPOSITORY" => "owner/repo"}, "bash", "-euo", "pipefail", "-c", shell)
     abort "tag collision policy is wrong for #{refs}: #{output}" unless status.success? == success
   end
   shell = "gh() { return 1; }\n" + tag_check.fetch("run")
@@ -770,8 +785,8 @@ Dir.mktmpdir("release fixtures ") do |root|
   source = fixture.call("source")
   output = File.join(root, "published")
   config = "configs/re-ss-01-istore.config"
-  version = "0.1.0-beta.1"
-  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.1"
+  version = "0.1.0-beta.2"
+  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.2"
   args = ["istore", version, "source-sha", "builder-sha", config]
   # A different working directory must not change which config gets copied.
   Dir.chdir(root) { run.call(true, "prepare", prepare, source, output, *args) }
@@ -840,7 +855,7 @@ Dir.mktmpdir("release fixtures ") do |root|
   bad_verify.call("checksum mismatch", false) { |directory| File.write(File.join(directory, prefix + suffixes[1]), "corrupted") }
   bad_verify.call("unaligned verification") { |directory| File.open(File.join(directory, prefix + suffixes[0]), "a") { |file| file.write("x") } }
   bad_verify.call("first field verification") { |directory| path = File.join(directory, prefix + ".manifest"); File.write(path, File.read(path).sub("luci-app-quickstart - 1.0", "luci-app-quickstart-extra - 1.0\nother - luci-app-quickstart")) }
-  %w[jdcloud-re-cp-03-libwrt-istore-v0.1.0-beta.1-squashfs-factory.bin jdcloud-re-ss-01-libwrt-argon-v1.0.0-squashfs-factory.bin].each do |name|
+  %w[jdcloud-re-cp-03-libwrt-istore-v0.1.0-beta.2-squashfs-factory.bin jdcloud-re-ss-01-libwrt-argon-v1.0.0-squashfs-factory.bin].each do |name|
     bad_verify.call("foreign #{name}") { |directory| File.write(File.join(directory, name), "foreign") }
   end
   expected.each do |name|

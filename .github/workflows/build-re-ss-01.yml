@@ -98,6 +98,12 @@ jobs:
           fi
           ./scripts/feeds install -a
 
+      - name: Harden QuickStart network integration
+        run: |
+          if [[ "${{ steps.variant.outputs.variant }}" == "istore" ]]; then
+            bash .github/scripts/harden-quickstart-network.sh openwrt/feeds/nas/network/services/quickstart
+          fi
+
       - name: Install RE-SS-01 defaults
         run: cp -a files/. openwrt/files/
 

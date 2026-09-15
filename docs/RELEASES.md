@@ -15,7 +15,7 @@ re-ss-01-<variant>-v<version>
 | 变体 | 标签 | Release 标题 |
 | --- | --- | --- |
 | Argon | `re-ss-01-argon-v1.0.0` | `京东云 AX1800 PRO（RE-SS-01）· Argon v1.0.0` |
-| iStore | `re-ss-01-istore-v0.1.0-beta.1` | `京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.1` |
+| iStore | `re-ss-01-istore-v0.1.0-beta.2` | `京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.2` |
 
 精确标签已经存在时，工作流必须在编译前失败。重新构建同一发布内容也要先递增对应版本文件；不得覆盖、删除后重用或用运行编号制造含义不清的重复 Release。
 
@@ -34,8 +34,8 @@ jdcloud-re-ss-01-libwrt-<variant>-v<version>
 ```text
 jdcloud-re-ss-01-libwrt-argon-v1.0.0-squashfs-factory.bin
 jdcloud-re-ss-01-libwrt-argon-v1.0.0-squashfs-sysupgrade.bin
-jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.1-squashfs-factory.bin
-jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.1-squashfs-sysupgrade.bin
+jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.2-squashfs-factory.bin
+jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.2-squashfs-sysupgrade.bin
 ```
 
 同一前缀还必须存在：
@@ -50,7 +50,9 @@ jdcloud-re-ss-01-libwrt-<variant>-v<version>.manifest
 ## Latest 与 Prerelease
 
 - Argon 稳定版是正式 Release；通过发布检查后可以标记为 GitHub Latest。当前稳定线版本为 `1.0.0`。
-- iStoreOS Dashboard beta 永远是 Prerelease，且必须显式设置为非 Latest。当前测试线版本为 `0.1.0-beta.1`。
+- iStoreOS Dashboard beta 永远是 Prerelease，且必须显式设置为非 Latest。当前测试线版本为 `0.1.0-beta.2`。
 - iStore 云编译成功不会改变其 beta 状态。完成 RE-SS-01 真机物理验收并进入后续稳定发布决策前，Argon 仍是稳定推荐。
+
+`re-ss-01-istore-v0.1.0-beta.1` 保留用于问题追踪，但因真机出现重启后基础网络失效，不再推荐下载或刷写；不要删除、覆盖或重新使用该标签。
 
 Release 说明应记录设备、变体、产品版本、`LiBwrt/LibWrt:25.12-nss` 源码提交、构建仓库提交和配置路径。下载后必须根据同一 Release 的 `SHA256SUMS` 校验，不能只看文件名刷写。
