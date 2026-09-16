@@ -1,0 +1,52 @@
+#!/bin/sh
+
+# netifd may emit several LAN events while an address is being applied.  Keep
+# ttyd bound to the LAN service without changing network exposure.
+[ "${INTERFACE:-}" = "lan" ] || exit 0
+case "${ACTION:-}" in
+	ifup|ifupdate) ;;
+	*) exit 0 ;;
+esac
+
+root_prefix="${TTYD_REBIND_ROOT:-}"
+if [ -n "$root_prefix" ]; then
+	ttyd_init="$root_prefix/etc/init.d/ttyd"
+	state_dir="$root_prefix/tmp"
+else
+	ttyd_init="/etc/init.d/ttyd"
+	state_dir="/tmp"
+fi
+
+[ -x "$ttyd_init" ] || exit 0
+"$ttyd_init" enabled >/dev/null 2>&1 || exit 0
+"$ttyd_init" running >/dev/null 2>&1 || exit 0
+
+lock_dir="$state_dir/ttyd-lan-rebind.lock"
+stamp_file="$state_dir/ttyd-lan-rebind.stamp"
+mkdir -p "$state_dir" 2>/dev/null || exit 0
+mkdir "$lock_dir" 2>/dev/null || exit 0
+cleanup() {
+	rmdir "$lock_dir" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT HUP INT TERM
+
+now="$(date +%s 2>/dev/null || echo 0)"
+last=0
+if [ -r "$stamp_file" ]; then
+	last="$(cat "$stamp_file" 2>/dev/null || echo 0)"
+	case "$last" in
+		*[!0-9]*|'') last=0 ;;
+	esac
+fi
+case "$now" in
+	*[!0-9]*|'') now=0 ;;
+esac
+if [ "$now" -gt 0 ] && [ "$last" -gt 0 ] && [ "$now" -ge "$last" ] && [ "$((now - last))" -lt 5 ]; then
+	exit 0
+fi
+printf '%s\n' "$now" > "$stamp_file"
+
+if command -v logger >/dev/null 2>&1; then
+	logger -t ttyd-rebind "restarting LAN ttyd after ${ACTION}"
+fi
+"$ttyd_init" restart

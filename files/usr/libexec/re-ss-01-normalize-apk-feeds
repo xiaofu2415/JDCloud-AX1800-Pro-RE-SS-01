@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# Remove only the nine LibWrt package feeds that were observed to be published
+# under an unavailable mirror.  The optional root argument is used by the
+# repository tests; firmware execution uses the real filesystem root.
+set -eu
+
+root="${1:-/}"
+repository_dir="$root/etc/apk/repositories.d"
+
+[ -d "$repository_dir" ] || exit 0
+
+for repository_file in "$repository_dir"/*.list; do
+	[ -f "$repository_file" ] || continue
+	temporary_file="$(mktemp "${repository_file}.XXXXXX")"
+	cleanup() {
+		rm -f "$temporary_file"
+	}
+	trap cleanup EXIT HUP INT TERM
+
+	awk '
+		$0 ~ "^https://mirrors\\.vsean\\.net/openwrt/releases/[^[:space:]]+/(istore|mosdns|nas|nas_luci|nss_packages|passwall2|passwall_packages|sqm_scripts_nss|video)/packages\\.adb([[:space:]]*)$" { next }
+		{ print }
+	' "$repository_file" > "$temporary_file"
+
+	mode="$(stat -c '%a' "$repository_file" 2>/dev/null || stat -f '%Lp' "$repository_file")"
+	chmod "$mode" "$temporary_file"
+	if cmp -s "$repository_file" "$temporary_file"; then
+		rm -f "$temporary_file"
+	else
+		mv "$temporary_file" "$repository_file"
+	fi
+	trap - EXIT HUP INT TERM
+done
+
+exit 0

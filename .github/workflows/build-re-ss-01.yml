@@ -98,10 +98,25 @@ jobs:
           fi
           ./scripts/feeds install -a
 
+      - name: Harden PassWall2 Xray runtime link
+        run: bash .github/scripts/harden-passwall2-xray.sh openwrt/feeds/passwall2/luci-app-passwall2
+
       - name: Harden QuickStart network integration
         run: |
           if [[ "${{ steps.variant.outputs.variant }}" == "istore" ]]; then
             bash .github/scripts/harden-quickstart-network.sh openwrt/feeds/nas/network/services/quickstart
+          fi
+
+      - name: Harden QuickStart status compatibility
+        run: |
+          if [[ "${{ steps.variant.outputs.variant }}" == "istore" ]]; then
+            bash .github/scripts/harden-quickstart-status-ui.sh openwrt/feeds/nas_luci/luci/luci-app-quickstart
+          fi
+
+      - name: Verify Samba4 LuCI ACL
+        run: |
+          if [[ "${{ steps.variant.outputs.variant }}" == "istore" ]]; then
+            bash .github/scripts/verify-samba4-acl.sh openwrt/feeds/luci/applications/luci-app-samba4
           fi
 
       - name: Install RE-SS-01 defaults

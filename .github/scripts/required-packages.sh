@@ -30,7 +30,10 @@ case "$variant" in
       luci-app-ttyd \
       luci-app-store \
       quickstart \
-      luci-app-quickstart
+      luci-app-quickstart \
+      luci-app-samba4 \
+      samba4-server \
+      block-mount
     ;;
   *)
     echo "unknown required-package variant: $variant" >&2

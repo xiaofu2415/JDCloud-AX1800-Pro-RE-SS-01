@@ -9,6 +9,8 @@ factory_fixture="$repo_root/tests/fixtures/ipq60xx.mk"
 defaults="$repo_root/files/etc/uci-defaults/99-re-ss-01-services"
 required_packages="$repo_root/.github/scripts/required-packages.sh"
 
+bash "$repo_root/tests/test-istore-remediation.sh"
+
 bash "$repo_root/tests/test-quickstart-hardening.sh"
 
 ruby - "$repo_root" <<'RUBY'
@@ -19,6 +21,7 @@ paths = %w[
   docs/BUILD.md
   docs/FLASHING.md
   docs/RELEASES.md
+  docs/STORAGE.md
   CHANGELOG.md
   SECURITY.md
 ]
@@ -52,7 +55,7 @@ require_text.call("README.md", "https://github.com/xiaofu2415/JDCloud-AX1800-Pro
 end
 require_text.call("README.md", "SECURITY.md", "the SECURITY guide link")
 require_match.call("README.md", /Argon.{0,40}`1\.0\.0`.{0,40}(稳定|stable)/i, "Argon 1.0.0 as stable")
-require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.2`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.2 as beta")
+require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.3`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.3 as beta")
 require_match.call("README.md", /QuickStart.{0,80}(自动改网|自动修改网络).{0,80}(关闭|禁用)/i, "disabled QuickStart automatic network mutation")
 
 require_match.call("docs/VARIANTS.md", /QuickStart.{0,40}(首页|落地页)/i, "QuickStart as the iStore landing page")
@@ -139,10 +142,10 @@ variants = {
   },
   "istore" => {
     "config" => "configs/re-ss-01-istore.config",
-    "version" => "0.1.0-beta.2",
-    "tag" => "re-ss-01-istore-v0.1.0-beta.2",
-    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.2",
-    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.2",
+    "version" => "0.1.0-beta.3",
+    "tag" => "re-ss-01-istore-v0.1.0-beta.3",
+    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.3",
+    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.3",
     "prerelease" => "true"
   }
 }
@@ -171,6 +174,9 @@ istore_only_packages = %w[
   CONFIG_PACKAGE_quickstart=y
   CONFIG_PACKAGE_luci-app-quickstart=y
   CONFIG_PACKAGE_xz-utils=y
+  CONFIG_PACKAGE_luci-app-samba4=y
+  CONFIG_PACKAGE_samba4-server=y
+  CONFIG_PACKAGE_block-mount=y
 ]
 
 variants.each do |variant, expected|
@@ -372,16 +378,16 @@ Dir.mktmpdir("workflow-contract-") do |directory|
   end
 
   # A missing exact tag passes; a same-prefix tag must not be a collision.
-  {"" => true, "refs/tags/re-ss-01-istore-v0.1.0-beta.2-extra" => true,
-   "refs/tags/re-ss-01-istore-v0.1.0-beta.2" => false}.each do |refs, success|
+  {"" => true, "refs/tags/re-ss-01-istore-v0.1.0-beta.3-extra" => true,
+   "refs/tags/re-ss-01-istore-v0.1.0-beta.3" => false}.each do |refs, success|
     shell = <<~'SHELL'
       gh() {
-        [[ "$*" == "api repos/owner/repo/git/matching-refs/tags/re-ss-01-istore-v0.1.0-beta.2 --jq .[].ref" ]] || return 97
+        [[ "$*" == "api repos/owner/repo/git/matching-refs/tags/re-ss-01-istore-v0.1.0-beta.3 --jq .[].ref" ]] || return 97
         printf '%s\n' "$TEST_REFS"
       }
     SHELL
     shell += tag_check.fetch("run")
-    output, status = Open3.capture2e({"TEST_REFS" => refs, "RELEASE_TAG" => "re-ss-01-istore-v0.1.0-beta.2", "GITHUB_REPOSITORY" => "owner/repo"}, "bash", "-euo", "pipefail", "-c", shell)
+    output, status = Open3.capture2e({"TEST_REFS" => refs, "RELEASE_TAG" => "re-ss-01-istore-v0.1.0-beta.3", "GITHUB_REPOSITORY" => "owner/repo"}, "bash", "-euo", "pipefail", "-c", shell)
     abort "tag collision policy is wrong for #{refs}: #{output}" unless status.success? == success
   end
   shell = "gh() { return 1; }\n" + tag_check.fetch("run")
@@ -440,18 +446,21 @@ assert_first_boot_policy() {
   executable_text="$(sed -E '/^[[:space:]]*$/d; /^[[:space:]]*#[^!]/d; s/[[:space:]]+#.*$//' "$policy_file")"
   expected_executable="$(cat <<'EOF'
 #!/bin/sh
-for service in passwall2 mosdns adguardhome dockerd tailscale sqm; do
+for service in passwall2 mosdns adguardhome dockerd tailscale sqm samba4; do
 	[ -x "/etc/init.d/$service" ] && /etc/init.d/$service disable
 done
 uci -q set passwall2.@global[0].enabled='0'
 uci -q set mosdns.config.enabled='0'
 uci -q set adguardhome.config.enabled='0'
+uci -q set sqm.@queue[0].interface='wan'
+uci -q set sqm.@queue[0].enabled='0'
 uci -q set nlbwmon.@nlbwmon[0].database_generations='3'
 uci -q set luci.themes.Argon='/luci-static/argon'
 uci -q set luci.main.mediaurlbase='/luci-static/argon'
 uci -q commit passwall2
 uci -q commit mosdns
 uci -q commit adguardhome
+uci -q commit sqm
 uci -q commit nlbwmon
 uci -q commit luci
 exit 0
@@ -534,6 +543,9 @@ istore_required_packages=(
   luci-app-store
   quickstart
   luci-app-quickstart
+  luci-app-samba4
+  samba4-server
+  block-mount
 )
 
 write_expected_required_packages() {
@@ -785,8 +797,8 @@ Dir.mktmpdir("release fixtures ") do |root|
   source = fixture.call("source")
   output = File.join(root, "published")
   config = "configs/re-ss-01-istore.config"
-  version = "0.1.0-beta.2"
-  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.2"
+  version = "0.1.0-beta.3"
+  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.3"
   args = ["istore", version, "source-sha", "builder-sha", config]
   # A different working directory must not change which config gets copied.
   Dir.chdir(root) { run.call(true, "prepare", prepare, source, output, *args) }

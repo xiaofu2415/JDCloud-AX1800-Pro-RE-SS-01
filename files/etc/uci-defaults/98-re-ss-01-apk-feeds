@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# Clean stale custom repositories before the first APK index refresh.  This
+# does not perform network access, install packages, or enable services.
+[ -x /usr/libexec/re-ss-01-normalize-apk-feeds ] &&
+	/usr/libexec/re-ss-01-normalize-apk-feeds
+
+exit 0

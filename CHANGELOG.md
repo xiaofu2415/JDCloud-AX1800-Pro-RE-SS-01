@@ -2,6 +2,18 @@
 
 本文件按产品版本记录用户可见变化。Argon 与 iStoreOS Dashboard 使用独立版本线。
 
+## 0.1.0-beta.3
+
+- 修复 PassWall2 启动前运行目录初始化和 Xray 临时链接替换逻辑；PassWall2 仍默认关闭，手动启动后才接管流量。
+- 清理已确认失效的 9 个运行时 APK 软件源，保留官方源与 iStore compat 源。
+- iStore 变体加入 `luci-app-samba4`、`samba4-server` 和 `block-mount`；Samba 默认关闭，不创建共享或开放端口。
+- 构建阶段拒绝带有 `/usr/sbin/smbd` 直接 `file.exec` 只读 ACL 的旧 Samba LuCI 源，只接受限制为 `/usr/sbin/smbd -V` 的安全 ACL。
+- LAN 地址重载后为 ttyd 增加 LAN 侧安全重绑定和去抖；不新增 WAN 入口。
+- 将 SQM 默认接口改为 `wan`，继续默认关闭，并保留 NSS 兼容性单独验收要求。
+- QuickStart 首页增加 RE-SS-01 兼容提示：CPU/Wi-Fi 温度以标准 LuCI 状态页为准，可写空间以 `/overlay` 挂载点为准。
+- `storage` 分区和 swap 仍不自动挂载、格式化或启用，Docker 与 Samba 数据目录须在核验分区后手动配置。
+- 本版本仍为 Prerelease；云编译成功后必须完成真机启动、网络、服务、重启和断电重启验收。
+
 ## 0.1.0-beta.2
 
 - 禁用 QuickStart 的 `startdhns` 自动改网服务及 WAN 接口事件钩子，避免开机或网络重载时改写 RE-SS-01 的 LAN、WAN 与 DHCP 配置。
