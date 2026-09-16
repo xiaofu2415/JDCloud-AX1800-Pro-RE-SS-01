@@ -55,7 +55,7 @@ require_text.call("README.md", "https://github.com/xiaofu2415/JDCloud-AX1800-Pro
 end
 require_text.call("README.md", "SECURITY.md", "the SECURITY guide link")
 require_match.call("README.md", /Argon.{0,40}`1\.0\.0`.{0,40}(稳定|stable)/i, "Argon 1.0.0 as stable")
-require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.3`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.3 as beta")
+require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.4`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.4 as beta")
 require_match.call("README.md", /QuickStart.{0,80}(自动改网|自动修改网络).{0,80}(关闭|禁用)/i, "disabled QuickStart automatic network mutation")
 
 require_match.call("docs/VARIANTS.md", /QuickStart.{0,40}(首页|落地页)/i, "QuickStart as the iStore landing page")
@@ -142,10 +142,10 @@ variants = {
   },
   "istore" => {
     "config" => "configs/re-ss-01-istore.config",
-    "version" => "0.1.0-beta.3",
-    "tag" => "re-ss-01-istore-v0.1.0-beta.3",
-    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.3",
-    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.3",
+    "version" => "0.1.0-beta.4",
+    "tag" => "re-ss-01-istore-v0.1.0-beta.4",
+    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.4",
+    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.4",
     "prerelease" => "true"
   }
 }
@@ -229,6 +229,7 @@ abort "build timeout must stay 360 minutes" unless workflow.dig("jobs", "build",
 env = workflow.fetch("env")
 abort "wrong upstream source" unless env["SOURCE_REPOSITORY"] == "https://github.com/LiBwrt/LibWrt.git"
 abort "wrong upstream branch" unless env["SOURCE_BRANCH"] == "25.12-nss"
+abort "workflow must version the downloads cache schema" unless env["DOWNLOAD_CACHE_SCHEMA"] == "go-mod-cache-v2"
 abort "fixed CONFIG_FILE must not select the variant" if File.read(workflow_path).include?("CONFIG_FILE")
 
 steps = workflow.dig("jobs", "build", "steps")
@@ -272,13 +273,16 @@ abort "missing download and compiler cache" unless cache
 cache_paths = cache.dig("with", "path").lines.map(&:strip).reject(&:empty?)
 abort "cache must contain only downloads and ccache" unless cache_paths == %w[openwrt/dl openwrt/.ccache]
 cache_key = cache.dig("with", "key")
-expected_key = "re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-${{ steps.source.outputs.commit }}-${{ hashFiles(steps.variant.outputs.config_file) }}"
-abort "cache key must track runner, branch, variant, source and selected config" unless cache_key == expected_key
+expected_key = "re-ss-01-${{ env.DOWNLOAD_CACHE_SCHEMA }}-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-${{ steps.source.outputs.commit }}-${{ hashFiles(steps.variant.outputs.config_file) }}"
+abort "cache key must track schema, runner, branch, variant, source and selected config" unless cache_key == expected_key
 restore_keys = cache.dig("with", "restore-keys").lines.map(&:strip).reject(&:empty?)
-abort "cache restore must stay within the selected variant" unless restore_keys == ["re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-"]
+abort "cache restore must stay within the selected cache schema and variant" unless restore_keys == ["re-ss-01-${{ env.DOWNLOAD_CACHE_SCHEMA }}-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-"]
 cache_index = steps.index(cache)
 feeds_index = steps.index { |step| step["name"] == "Install feeds" }
 abort "cache must restore after clone and before feeds" unless cache_index > alignment_index && cache_index < feeds_index
+
+download = step_named.call("Download source packages")
+abort "download cleanup must not recurse into the Go module cache" unless download.fetch("run").include?('find openwrt/dl -mindepth 1 -maxdepth 1 -type f -size -1024c -print -delete')
 
 feeds_install = steps.fetch(feeds_index).fetch("run")
 mosdns_install_index = feeds_install.index("./scripts/feeds install -p mosdns -a")
@@ -378,16 +382,16 @@ Dir.mktmpdir("workflow-contract-") do |directory|
   end
 
   # A missing exact tag passes; a same-prefix tag must not be a collision.
-  {"" => true, "refs/tags/re-ss-01-istore-v0.1.0-beta.3-extra" => true,
-   "refs/tags/re-ss-01-istore-v0.1.0-beta.3" => false}.each do |refs, success|
+  {"" => true, "refs/tags/re-ss-01-istore-v0.1.0-beta.4-extra" => true,
+   "refs/tags/re-ss-01-istore-v0.1.0-beta.4" => false}.each do |refs, success|
     shell = <<~'SHELL'
       gh() {
-        [[ "$*" == "api repos/owner/repo/git/matching-refs/tags/re-ss-01-istore-v0.1.0-beta.3 --jq .[].ref" ]] || return 97
+        [[ "$*" == "api repos/owner/repo/git/matching-refs/tags/re-ss-01-istore-v0.1.0-beta.4 --jq .[].ref" ]] || return 97
         printf '%s\n' "$TEST_REFS"
       }
     SHELL
     shell += tag_check.fetch("run")
-    output, status = Open3.capture2e({"TEST_REFS" => refs, "RELEASE_TAG" => "re-ss-01-istore-v0.1.0-beta.3", "GITHUB_REPOSITORY" => "owner/repo"}, "bash", "-euo", "pipefail", "-c", shell)
+    output, status = Open3.capture2e({"TEST_REFS" => refs, "RELEASE_TAG" => "re-ss-01-istore-v0.1.0-beta.4", "GITHUB_REPOSITORY" => "owner/repo"}, "bash", "-euo", "pipefail", "-c", shell)
     abort "tag collision policy is wrong for #{refs}: #{output}" unless status.success? == success
   end
   shell = "gh() { return 1; }\n" + tag_check.fetch("run")
@@ -797,8 +801,8 @@ Dir.mktmpdir("release fixtures ") do |root|
   source = fixture.call("source")
   output = File.join(root, "published")
   config = "configs/re-ss-01-istore.config"
-  version = "0.1.0-beta.3"
-  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.3"
+  version = "0.1.0-beta.4"
+  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.4"
   args = ["istore", version, "source-sha", "builder-sha", config]
   # A different working directory must not change which config gets copied.
   Dir.chdir(root) { run.call(true, "prepare", prepare, source, output, *args) }

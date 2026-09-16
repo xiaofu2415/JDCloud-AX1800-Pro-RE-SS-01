@@ -19,7 +19,7 @@
 当前版本文件分别为：
 
 - Argon：`versions/argon.version`，当前 `1.0.0`
-- iStore：`versions/istore.version`，当前 `0.1.0-beta.3`
+- iStore：`versions/istore.version`，当前 `0.1.0-beta.4`
 
 重建同一 Release 前必须先更新对应的版本文件，并提交该版本变更。不得重复使用已有产品版本覆盖 Release；工作流发现精确标签已经存在时，会在安装依赖和编译之前失败。修复后重新发布时应递增版本，例如从 `0.1.0-beta.2` 更新为 `0.1.0-beta.3`，而不是删除旧标签后重用版本号。
 
@@ -49,7 +49,7 @@ Artifact 保留已校验的 factory、sysupgrade、initramfs、manifest、`profi
 
 - **标签已存在**：更新对应 `versions/*.version` 后重新提交，不要覆盖旧 Release。
 - **必需包缺失**：保留失败日志，检查所选配置和固定 feed；不要删掉校验步骤绕过失败。
-- **编译失败**：Argon 与 iStore 配置相互独立；iStore 失败不得改写现有 Argon Release。
+- **编译失败**：Argon 与 iStore 配置相互独立；iStore 失败不得改写现有 Argon Release。若日志出现 `no required module provides package` 且路径位于 `dl/go-mod-cache`，先检查下载清理是否递归删除了 Go 模块缓存中的小文件；本仓库的工作流只清理 `openwrt/dl` 顶层下载文件，并通过 `DOWNLOAD_CACHE_SCHEMA` 使旧缓存失效。
 - **产物校验失败**：不要发布或刷写。确认文件集、manifest、factory 对齐、元数据和 `SHA256SUMS` 全部通过。
 - **beta 真机失败**：记录结果并使用已验证的 Argon factory 镜像恢复；不要把 iStore 标为 Latest 或合并到 `main`。
 

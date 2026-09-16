@@ -2,6 +2,12 @@
 
 本文件按产品版本记录用户可见变化。Argon 与 iStoreOS Dashboard 使用独立版本线。
 
+## 0.1.0-beta.4
+
+- 修复 GitHub Actions 下载清理步骤递归删除 `openwrt/dl/go-mod-cache` 中小于 1 KiB 的 Go 源文件，避免 AdGuard Home 报告 `internal/*` 依赖不存在。
+- 提升下载缓存 schema 到 `go-mod-cache-v2`，淘汰 beta.3 运行产生的损坏模块缓存；保留 PassWall2、QuickStart、Samba 和 ttyd 的 beta.3 修复。
+- 继续保持 iStore 为 Prerelease，PassWall2、MosDNS、AdGuard Home、Docker、Tailscale、Samba 和 SQM 默认关闭。
+
 ## 0.1.0-beta.3
 
 - 修复 PassWall2 启动前运行目录初始化和 Xray 临时链接替换逻辑；PassWall2 仍默认关闭，手动启动后才接管流量。

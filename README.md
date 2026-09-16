@@ -9,7 +9,7 @@
 | 变体 | 产品版本 | 状态 | 登录后的页面 | 发布策略 |
 | --- | --- | --- | --- | --- |
 | Argon | `1.0.0` | 稳定版 | 标准 LuCI 页面使用 Argon | 正式发布，可设为 GitHub Latest |
-| iStoreOS Dashboard | `0.1.0-beta.3` | beta 实验版 | QuickStart 首页；其他 LuCI 页面使用 Argon | Prerelease，不得设为 Latest |
+| iStoreOS Dashboard | `0.1.0-beta.4` | beta 实验版 | QuickStart 首页；其他 LuCI 页面使用 Argon | Prerelease，不得设为 Latest |
 
 Argon 仍是稳定推荐，直到 iStore beta 完成真机硬件验证。当前 iStore 变体尚不能替代已刷入并验证过的 Argon 固件作为稳定选择。
 

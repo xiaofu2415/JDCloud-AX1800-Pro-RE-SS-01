@@ -18,6 +18,7 @@ permissions:
 env:
   SOURCE_REPOSITORY: https://github.com/LiBwrt/LibWrt.git
   SOURCE_BRANCH: 25.12-nss
+  DOWNLOAD_CACHE_SCHEMA: go-mod-cache-v2
   TZ: Asia/Taipei
 
 jobs:
@@ -79,9 +80,9 @@ jobs:
           path: |
             openwrt/dl
             openwrt/.ccache
-          key: re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-${{ steps.source.outputs.commit }}-${{ hashFiles(steps.variant.outputs.config_file) }}
+          key: re-ss-01-${{ env.DOWNLOAD_CACHE_SCHEMA }}-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-${{ steps.source.outputs.commit }}-${{ hashFiles(steps.variant.outputs.config_file) }}
           restore-keys: |
-            re-ss-01-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-
+            re-ss-01-${{ env.DOWNLOAD_CACHE_SCHEMA }}-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-
 
       - name: Add requested package feeds
         run: bash .github/scripts/add-package-feeds.sh openwrt/feeds.conf.default "${{ steps.variant.outputs.variant }}"
@@ -143,7 +144,7 @@ jobs:
       - name: Download source packages
         run: |
           make -C openwrt download -j"$(nproc)" || make -C openwrt download -j1 V=s
-          find openwrt/dl -type f -size -1024c -print -delete
+          find openwrt/dl -mindepth 1 -maxdepth 1 -type f -size -1024c -print -delete
 
       - name: Compile firmware
         run: |

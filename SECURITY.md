@@ -15,7 +15,7 @@
 - 固件不会自动启用 PassWall2、MosDNS、AdGuard Home、Docker、Tailscale、Samba 或 SQM，避免未配置服务抢占端口或产生意外暴露。
 - iStore 构建会校验 `luci-app-samba4` 的 rpcd ACL：拒绝在只读角色中直接执行 `/usr/sbin/smbd`，仅接受限制为 `/usr/sbin/smbd -V` 的上游修复形式。
 - 固件不会改变 LAN 默认地址，不会自动挂载 `storage` 或启用 swap。
-- iStore beta.3 会在构建阶段禁用 QuickStart 的 `startdhns` 自动改网服务和 WAN 事件钩子。QuickStart 网络向导不属于本设备支持的配置入口；请使用标准 LuCI 管理网络。Samba 默认关闭且不创建共享。
+- iStore beta.4 会在构建阶段禁用 QuickStart 的 `startdhns` 自动改网服务和 WAN 事件钩子。QuickStart 网络向导不属于本设备支持的配置入口；请使用标准 LuCI 管理网络。Samba 默认关闭且不创建共享。
 
 ## 构建与数据边界
 
@@ -25,7 +25,7 @@ GitHub Actions 只克隆公开源码、读取仓库配置、编译并发布产�
 
 ## beta 验收门槛
 
-iStore `0.1.0-beta.3` 是 Prerelease，不能标记为 Latest。云编译通过不代表安全边界已经在设备上成立；必须在 RE-SS-01 真机上验证 root 密码、LuCI、SSH、ttyd LAN/WAN 隔离、默认服务状态、重启和断电重启。在这些物理检查完成前，不得合并到 `main`，Argon `1.0.0` 仍是稳定推荐。
+iStore `0.1.0-beta.4` 是 Prerelease，不能标记为 Latest。云编译通过不代表安全边界已经在设备上成立；必须在 RE-SS-01 真机上验证 root 密码、LuCI、SSH、ttyd LAN/WAN 隔离、默认服务状态、重启和断电重启。在这些物理检查完成前，不得合并到 `main`，Argon `1.0.0` 仍是稳定推荐。
 
 ## 报告问题
 
