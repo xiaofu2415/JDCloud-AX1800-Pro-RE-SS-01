@@ -13,6 +13,8 @@ bash "$repo_root/tests/test-istore-remediation.sh"
 
 bash "$repo_root/tests/test-quickstart-hardening.sh"
 
+bash "$repo_root/tests/test-passwall2-policy.sh"
+
 ruby - "$repo_root" <<'RUBY'
 repo = ARGV.fetch(0)
 paths = %w[
@@ -55,7 +57,7 @@ require_text.call("README.md", "https://github.com/xiaofu2415/JDCloud-AX1800-Pro
 end
 require_text.call("README.md", "SECURITY.md", "the SECURITY guide link")
 require_match.call("README.md", /Argon.{0,40}`1\.0\.0`.{0,40}(稳定|stable)/i, "Argon 1.0.0 as stable")
-require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.5`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.5 as beta")
+require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.6`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.6 as beta")
 require_match.call("README.md", /QuickStart.{0,80}(自动改网|自动修改网络).{0,80}(关闭|禁用)/i, "disabled QuickStart automatic network mutation")
 
 require_match.call("docs/VARIANTS.md", /QuickStart.{0,40}(首页|落地页)/i, "QuickStart as the iStore landing page")
@@ -142,10 +144,10 @@ variants = {
   },
   "istore" => {
     "config" => "configs/re-ss-01-istore.config",
-    "version" => "0.1.0-beta.5",
-    "tag" => "re-ss-01-istore-v0.1.0-beta.5",
-    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.5",
-    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.5",
+    "version" => "0.1.0-beta.6",
+    "tag" => "re-ss-01-istore-v0.1.0-beta.6",
+    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.6",
+    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.6",
     "prerelease" => "true"
   }
 }
@@ -388,16 +390,16 @@ Dir.mktmpdir("workflow-contract-") do |directory|
   end
 
   # A missing exact tag passes; a same-prefix tag must not be a collision.
-  {"" => true, "refs/tags/re-ss-01-istore-v0.1.0-beta.5-extra" => true,
-   "refs/tags/re-ss-01-istore-v0.1.0-beta.5" => false}.each do |refs, success|
+  {"" => true, "refs/tags/re-ss-01-istore-v0.1.0-beta.6-extra" => true,
+   "refs/tags/re-ss-01-istore-v0.1.0-beta.6" => false}.each do |refs, success|
     shell = <<~'SHELL'
       gh() {
-        [[ "$*" == "api repos/owner/repo/git/matching-refs/tags/re-ss-01-istore-v0.1.0-beta.5 --jq .[].ref" ]] || return 97
+        [[ "$*" == "api repos/owner/repo/git/matching-refs/tags/re-ss-01-istore-v0.1.0-beta.6 --jq .[].ref" ]] || return 97
         printf '%s\n' "$TEST_REFS"
       }
     SHELL
     shell += tag_check.fetch("run")
-    output, status = Open3.capture2e({"TEST_REFS" => refs, "RELEASE_TAG" => "re-ss-01-istore-v0.1.0-beta.5", "GITHUB_REPOSITORY" => "owner/repo"}, "bash", "-euo", "pipefail", "-c", shell)
+    output, status = Open3.capture2e({"TEST_REFS" => refs, "RELEASE_TAG" => "re-ss-01-istore-v0.1.0-beta.6", "GITHUB_REPOSITORY" => "owner/repo"}, "bash", "-euo", "pipefail", "-c", shell)
     abort "tag collision policy is wrong for #{refs}: #{output}" unless status.success? == success
   end
   shell = "gh() { return 1; }\n" + tag_check.fetch("run")
@@ -460,6 +462,13 @@ for service in passwall2 mosdns adguardhome dockerd tailscale sqm samba4; do
 	[ -x "/etc/init.d/$service" ] && /etc/init.d/$service disable
 done
 uci -q set passwall2.@global[0].enabled='0'
+if uci -q get passwall2.rulenode >/dev/null 2>&1; then
+	for rule in DirectFront DirectGame; do
+		if uci -q get "passwall2.$rule.remarks" >/dev/null 2>&1; then
+			uci -q set "passwall2.rulenode.$rule='_direct'"
+		fi
+	done
+fi
 uci -q set mosdns.config.enabled='0'
 uci -q set adguardhome.config.enabled='0'
 uci -q set sqm.@queue[0].interface='wan'
@@ -467,6 +476,12 @@ uci -q set sqm.@queue[0].enabled='0'
 uci -q set nlbwmon.@nlbwmon[0].database_generations='3'
 uci -q set luci.themes.Argon='/luci-static/argon'
 uci -q set luci.main.mediaurlbase='/luci-static/argon'
+if [ -x /etc/init.d/re-ss-01-passwall2-sync ]; then
+	/etc/init.d/re-ss-01-passwall2-sync enable
+fi
+if [ -x /usr/libexec/re-ss-01-passwall2-sync ]; then
+	/usr/libexec/re-ss-01-passwall2-sync sync
+fi
 uci -q commit passwall2
 uci -q commit mosdns
 uci -q commit adguardhome
@@ -807,8 +822,8 @@ Dir.mktmpdir("release fixtures ") do |root|
   source = fixture.call("source")
   output = File.join(root, "published")
   config = "configs/re-ss-01-istore.config"
-  version = "0.1.0-beta.5"
-  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.5"
+  version = "0.1.0-beta.6"
+  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.6"
   args = ["istore", version, "source-sha", "builder-sha", config]
   # A different working directory must not change which config gets copied.
   Dir.chdir(root) { run.call(true, "prepare", prepare, source, output, *args) }

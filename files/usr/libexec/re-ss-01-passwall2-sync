@@ -1,0 +1,64 @@
+#!/bin/sh
+
+set -eu
+
+UCI_BIN="${RE_SS_01_UCI:-uci}"
+INIT_DIR="${RE_SS_01_INIT_DIR:-/etc/init.d}"
+PASSWALL2_INIT="${INIT_DIR}/passwall2"
+
+uci_get() {
+	"${UCI_BIN}" -q get "$1" 2>/dev/null
+}
+
+sync_direct_rule_mappings() {
+	# The stock PassWall2 config has a nodes section named rulenode.  Do not
+	# create a synthetic section when a future feed changes that schema.
+	uci_get passwall2.rulenode >/dev/null 2>&1 || return 0
+
+	# These are the bundled direct shunt rules. ProxyFront/ProxyGame must stay
+	# untouched because they are intentionally available for a proxy node.
+	for rule in DirectFront DirectGame; do
+		if uci_get "passwall2.${rule}.remarks" >/dev/null 2>&1; then
+			current="$("${UCI_BIN}" -q get "passwall2.rulenode.${rule}" 2>/dev/null || true)"
+			[ "$current" = "_direct" ] ||
+				"${UCI_BIN}" -q set "passwall2.rulenode.${rule}='_direct'"
+		fi
+	done
+}
+
+sync_service_state() {
+	[ -x "$PASSWALL2_INIT" ] || return 0
+
+	enabled="$(uci_get 'passwall2.@global[0].enabled' || printf '0')"
+	case "$enabled" in
+		1|yes|true|on)
+			# A user-enabled global switch must survive a reboot even when a
+			# first-boot policy previously disabled the package init script.
+			"$PASSWALL2_INIT" enable >/dev/null 2>&1 || true
+			# Avoid restarting a healthy core on every policy invocation.
+			if ! "$PASSWALL2_INIT" status >/dev/null 2>&1; then
+				"$PASSWALL2_INIT" start
+			fi
+			;;
+		*)
+			# Default-off remains explicit and does not start any proxy core.
+			"$PASSWALL2_INIT" disable >/dev/null 2>&1 || true
+			;;
+	esac
+}
+
+sync_passwall2() {
+	sync_direct_rule_mappings
+	sync_service_state
+	"${UCI_BIN}" -q commit passwall2 >/dev/null 2>&1 || true
+}
+
+case "${1:-sync}" in
+	sync|boot)
+		sync_passwall2
+		;;
+	*)
+		echo "Usage: $0 {sync|boot}" >&2
+		exit 2
+		;;
+esac

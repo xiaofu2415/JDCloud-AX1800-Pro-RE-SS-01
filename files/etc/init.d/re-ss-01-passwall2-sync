@@ -1,0 +1,14 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+STOP=10
+USE_PROCD=0
+
+start() {
+	[ -x /usr/libexec/re-ss-01-passwall2-sync ] || return 0
+	/usr/libexec/re-ss-01-passwall2-sync boot
+}
+
+stop() {
+	return 0
+}

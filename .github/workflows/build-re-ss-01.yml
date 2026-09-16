@@ -105,6 +105,9 @@ jobs:
       - name: Harden PassWall2 Xray runtime link
         run: bash .github/scripts/harden-passwall2-xray.sh openwrt/feeds/passwall2/luci-app-passwall2
 
+      - name: Harden PassWall2 default shunt mappings
+        run: bash .github/scripts/harden-passwall2-shunt-defaults.sh openwrt/feeds/passwall2/luci-app-passwall2/root/usr/share/passwall2/0_default_config
+
       - name: Harden QuickStart network integration
         run: |
           if [[ "${{ steps.variant.outputs.variant }}" == "istore" ]]; then

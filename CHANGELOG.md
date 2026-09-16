@@ -2,6 +2,12 @@
 
 本文件按产品版本记录用户可见变化。Argon 与 iStoreOS Dashboard 使用独立版本线。
 
+## 0.1.0-beta.6
+
+- 持久化 PassWall2 内置 `DirectFront`、`DirectGame` 到“直连”，并在构建阶段对上游 `0_default_config` 做严格、幂等的映射校验，避免自定义直连域名意外落到默认代理节点。
+- 增加 RE-SS-01 PassWall2 启动同步服务：默认仍为关闭；用户把主开关设为 1 后，重启时自动同步 init 启用状态并启动服务，避免 LuCI 主开关与启动项分离。
+- 保留 Xray 26.9.9 与临时运行目录修复。未自动挂载未知 swap 或改变内存策略；Reality/Hysteria2 的 30 分钟 OOM、节点切换和断电重启仍需真机验收。
+
 ## 0.1.0-beta.5
 
 - 将 `xray-core` 从 26.3.27 升级到已验证的 26.9.9，修复 PassWall2 tunnel UDP DNS 入站问题；为 LibWrt 现有 Go 1.26 构建环境加入受保护的 `go.mod` 兼容补丁。

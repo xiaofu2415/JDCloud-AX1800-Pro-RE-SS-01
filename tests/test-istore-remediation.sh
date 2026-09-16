@@ -40,6 +40,7 @@ require_match() {
 
 normalize="$repo_root/files/usr/libexec/re-ss-01-normalize-apk-feeds"
 passwall_hardener="$repo_root/.github/scripts/harden-passwall2-xray.sh"
+passwall_shunt_hardener="$repo_root/.github/scripts/harden-passwall2-shunt-defaults.sh"
 xray_pinner="$repo_root/.github/scripts/pin-xray-core.sh"
 quickstart_ui_hardener="$repo_root/.github/scripts/harden-quickstart-status-ui.sh"
 samba_acl_verifier="$repo_root/.github/scripts/verify-samba4-acl.sh"
@@ -52,6 +53,7 @@ required_packages="$repo_root/.github/scripts/required-packages.sh"
 
 require_executable "$normalize"
 require_executable "$passwall_hardener"
+require_executable "$passwall_shunt_hardener"
 require_executable "$xray_pinner"
 require_executable "$quickstart_ui_hardener"
 require_executable "$samba_acl_verifier"
@@ -68,10 +70,11 @@ require_text "$config" 'CONFIG_PACKAGE_luci-app-samba4=y'
 require_text "$config" 'CONFIG_PACKAGE_samba4-server=y'
 require_text "$config" 'CONFIG_PACKAGE_block-mount=y'
 require_match "$workflow" 'bash \.github/scripts/harden-passwall2-xray\.sh openwrt/feeds/passwall2/luci-app-passwall2'
+require_match "$workflow" 'bash \.github/scripts/harden-passwall2-shunt-defaults\.sh openwrt/feeds/passwall2/luci-app-passwall2/root/usr/share/passwall2/0_default_config'
 require_match "$workflow" 'bash \.github/scripts/pin-xray-core\.sh openwrt/feeds/packages/net/xray-core/Makefile'
 require_match "$workflow" 'bash \.github/scripts/harden-quickstart-status-ui\.sh openwrt/feeds/nas_luci/luci/luci-app-quickstart'
 require_match "$workflow" 'bash \.github/scripts/verify-samba4-acl\.sh openwrt/feeds/luci/applications/luci-app-samba4'
-require_text "$repo_root/versions/istore.version" '0.1.0-beta.5'
+require_text "$repo_root/versions/istore.version" '0.1.0-beta.6'
 
 packages="$($required_packages istore)"
 for package in luci-app-samba4 samba4-server block-mount; do
@@ -251,4 +254,4 @@ if "$samba_acl_verifier" "$vulnerable_samba" >/dev/null 2>&1; then
 fi
 diff -u "$temporary/vulnerable-samba4-before.json" "$vulnerable_samba/root/usr/share/rpcd/acl.d/luci-app-samba4.json"
 
-echo "iStore beta.5 remediation contracts: ok"
+echo "iStore beta.6 remediation contracts: ok"

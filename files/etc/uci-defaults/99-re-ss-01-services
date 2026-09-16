@@ -8,6 +8,13 @@ for service in passwall2 mosdns adguardhome dockerd tailscale sqm samba4; do
 done
 
 uci -q set passwall2.@global[0].enabled='0'
+if uci -q get passwall2.rulenode >/dev/null 2>&1; then
+	for rule in DirectFront DirectGame; do
+		if uci -q get "passwall2.$rule.remarks" >/dev/null 2>&1; then
+			uci -q set "passwall2.rulenode.$rule='_direct'"
+		fi
+	done
+fi
 uci -q set mosdns.config.enabled='0'
 uci -q set adguardhome.config.enabled='0'
 uci -q set sqm.@queue[0].interface='wan'
@@ -21,6 +28,13 @@ uci -q set nlbwmon.@nlbwmon[0].database_generations='3'
 # policy and receives no WAN accept rule.
 uci -q set luci.themes.Argon='/luci-static/argon'
 uci -q set luci.main.mediaurlbase='/luci-static/argon'
+
+if [ -x /etc/init.d/re-ss-01-passwall2-sync ]; then
+	/etc/init.d/re-ss-01-passwall2-sync enable
+fi
+if [ -x /usr/libexec/re-ss-01-passwall2-sync ]; then
+	/usr/libexec/re-ss-01-passwall2-sync sync
+fi
 
 uci -q commit passwall2
 uci -q commit mosdns
