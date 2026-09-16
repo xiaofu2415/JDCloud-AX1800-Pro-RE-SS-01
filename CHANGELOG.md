@@ -2,6 +2,11 @@
 
 本文件按产品版本记录用户可见变化。Argon 与 iStoreOS Dashboard 使用独立版本线。
 
+## 0.1.0-beta.5
+
+- 将 `xray-core` 从 26.3.27 升级到已验证的 26.9.9，修复 PassWall2 tunnel UDP DNS 入站问题；为 LibWrt 现有 Go 1.26 构建环境加入受保护的 `go.mod` 兼容补丁。
+- 保留 beta.4 的 Go 模块缓存修复，并继续保持 PassWall2 默认关闭；需在真机上分别验证 Reality、Hysteria2、本地 DNS 和 LAN DNS。
+
 ## 0.1.0-beta.4
 
 - 修复 GitHub Actions 下载清理步骤递归删除 `openwrt/dl/go-mod-cache` 中小于 1 KiB 的 Go 源文件，避免 AdGuard Home 报告 `internal/*` 依赖不存在。

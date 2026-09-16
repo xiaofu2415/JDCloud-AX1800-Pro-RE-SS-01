@@ -99,6 +99,9 @@ jobs:
           fi
           ./scripts/feeds install -a
 
+      - name: Pin Xray core tunnel UDP fix
+        run: bash .github/scripts/pin-xray-core.sh openwrt/feeds/packages/net/xray-core/Makefile
+
       - name: Harden PassWall2 Xray runtime link
         run: bash .github/scripts/harden-passwall2-xray.sh openwrt/feeds/passwall2/luci-app-passwall2
 

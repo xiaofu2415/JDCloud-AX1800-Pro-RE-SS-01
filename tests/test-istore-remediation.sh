@@ -40,6 +40,7 @@ require_match() {
 
 normalize="$repo_root/files/usr/libexec/re-ss-01-normalize-apk-feeds"
 passwall_hardener="$repo_root/.github/scripts/harden-passwall2-xray.sh"
+xray_pinner="$repo_root/.github/scripts/pin-xray-core.sh"
 quickstart_ui_hardener="$repo_root/.github/scripts/harden-quickstart-status-ui.sh"
 samba_acl_verifier="$repo_root/.github/scripts/verify-samba4-acl.sh"
 feed_defaults="$repo_root/files/etc/uci-defaults/98-re-ss-01-apk-feeds"
@@ -51,6 +52,7 @@ required_packages="$repo_root/.github/scripts/required-packages.sh"
 
 require_executable "$normalize"
 require_executable "$passwall_hardener"
+require_executable "$xray_pinner"
 require_executable "$quickstart_ui_hardener"
 require_executable "$samba_acl_verifier"
 require_file "$feed_defaults"
@@ -66,9 +68,10 @@ require_text "$config" 'CONFIG_PACKAGE_luci-app-samba4=y'
 require_text "$config" 'CONFIG_PACKAGE_samba4-server=y'
 require_text "$config" 'CONFIG_PACKAGE_block-mount=y'
 require_match "$workflow" 'bash \.github/scripts/harden-passwall2-xray\.sh openwrt/feeds/passwall2/luci-app-passwall2'
+require_match "$workflow" 'bash \.github/scripts/pin-xray-core\.sh openwrt/feeds/packages/net/xray-core/Makefile'
 require_match "$workflow" 'bash \.github/scripts/harden-quickstart-status-ui\.sh openwrt/feeds/nas_luci/luci/luci-app-quickstart'
 require_match "$workflow" 'bash \.github/scripts/verify-samba4-acl\.sh openwrt/feeds/luci/applications/luci-app-samba4'
-require_text "$repo_root/versions/istore.version" '0.1.0-beta.4'
+require_text "$repo_root/versions/istore.version" '0.1.0-beta.5'
 
 packages="$($required_packages istore)"
 for package in luci-app-samba4 samba4-server block-mount; do
@@ -136,6 +139,48 @@ if "$passwall_hardener" "$unknown_passwall" >/dev/null 2>&1; then
   exit 1
 fi
 diff -u "$temporary/unknown-passwall-before.list" "$unknown_passwall/root/usr/share/passwall2/utils.sh"
+
+xray_feed="$temporary/xray-core"
+mkdir -p "$xray_feed/patches"
+xray_makefile="$xray_feed/Makefile"
+cat > "$xray_makefile" <<'EOF'
+PKG_NAME:=xray-core
+PKG_VERSION:=26.3.27
+PKG_RELEASE:=1
+PKG_SOURCE_URL:=https://codeload.github.com/XTLS/Xray-core/tar.gz/v$(PKG_VERSION)?
+PKG_HASH:=992a4997e6bb846d11469435d687f99ef812fcde1e0a009bb8e95189ea20331d
+PKG_BUILD_DEPENDS:=golang/host
+EOF
+cp "$xray_makefile" "$temporary/xray-before.mk"
+"$xray_pinner" "$xray_makefile"
+grep -Fqx 'PKG_VERSION:=26.9.9' "$xray_makefile"
+grep -Fqx 'PKG_HASH:=efb871a981690688191433a76beef7afdab6750d53cc1775cf8e9e995730ef22' "$xray_makefile"
+grep -Fqx 'PKG_BUILD_DEPENDS:=golang/host' "$xray_makefile"
+xray_patch="$xray_feed/patches/100-go-1.26-compat.patch"
+grep -Fqx -- '-go 1.27' "$xray_patch"
+grep -Fqx -- '+go 1.26' "$xray_patch"
+cp "$xray_makefile" "$temporary/xray-after-once.mk"
+cp "$xray_patch" "$temporary/xray-patch-after-once"
+"$xray_pinner" "$xray_makefile"
+diff -u "$temporary/xray-after-once.mk" "$xray_makefile"
+diff -u "$temporary/xray-patch-after-once" "$xray_patch"
+
+unknown_xray="$temporary/unknown-xray"
+mkdir -p "$unknown_xray/patches"
+printf '%s\n' \
+  'PKG_NAME:=xray-core' \
+  'PKG_VERSION:=26.3.28' \
+  'PKG_RELEASE:=1' \
+  'PKG_SOURCE_URL:=https://example.invalid/xray' \
+  'PKG_HASH:=unknown' \
+  'PKG_BUILD_DEPENDS:=golang/host' \
+  > "$unknown_xray/Makefile"
+cp "$unknown_xray/Makefile" "$temporary/unknown-xray-before.mk"
+if "$xray_pinner" "$unknown_xray/Makefile" >/dev/null 2>&1; then
+  echo "Xray pinner must reject an unknown upstream package Makefile" >&2
+  exit 1
+fi
+diff -u "$temporary/unknown-xray-before.mk" "$unknown_xray/Makefile"
 
 ttyd_root="$temporary/ttyd-root"
 mkdir -p "$ttyd_root/etc/init.d" "$ttyd_root/tmp"
@@ -206,4 +251,4 @@ if "$samba_acl_verifier" "$vulnerable_samba" >/dev/null 2>&1; then
 fi
 diff -u "$temporary/vulnerable-samba4-before.json" "$vulnerable_samba/root/usr/share/rpcd/acl.d/luci-app-samba4.json"
 
-echo "iStore beta.4 remediation contracts: ok"
+echo "iStore beta.5 remediation contracts: ok"
