@@ -257,6 +257,21 @@ cp "$quickstart_no_docker_template" "$temporary/quickstart-no-docker-after-once.
 "$quickstart_docker_hardener" "$quickstart_no_docker_template"
 diff -u "$temporary/quickstart-no-docker-after-once.htm" "$quickstart_no_docker_template"
 
+quickstart_combined="$temporary/quickstart-combined"
+mkdir -p "$quickstart_combined/luasrc/view/quickstart"
+cp "$repo_root/tests/fixtures/quickstart/main.htm" "$quickstart_combined/luasrc/view/quickstart/main.htm"
+combined_template="$quickstart_combined/luasrc/view/quickstart/main.htm"
+"$quickstart_docker_hardener" "$combined_template"
+"$quickstart_ui_hardener" "$quickstart_combined"
+if grep -Fq 'dockerd' "$combined_template" || ! grep -Fq 'RE-SS-01 兼容提示' "$combined_template"; then
+  echo "QuickStart combined hardening must remove Docker and keep the compatibility notice" >&2
+  exit 1
+fi
+cp "$combined_template" "$temporary/quickstart-combined-after-once.htm"
+"$quickstart_docker_hardener" "$combined_template"
+"$quickstart_ui_hardener" "$quickstart_combined"
+diff -u "$temporary/quickstart-combined-after-once.htm" "$combined_template"
+
 unknown_quickstart_no_docker="$temporary/unknown-quickstart-no-docker.htm"
 cp "$repo_root/tests/fixtures/quickstart/main.htm" "$unknown_quickstart_no_docker"
 printf '%s\n' '<!-- upstream changed -->' >> "$unknown_quickstart_no_docker"

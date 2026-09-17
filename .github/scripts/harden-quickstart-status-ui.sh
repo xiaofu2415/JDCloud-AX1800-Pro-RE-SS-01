@@ -14,12 +14,14 @@ template="$package_root/luasrc/view/quickstart/main.htm"
 # unrelated upstream change instead of silently editing an unknown page.
 expected_original_sha='806d968acb47afadc44f2bcb2c482f7149763a03f83934dc7323a9b95ae85fc2'
 expected_patched_sha='53c7c01eeacd13dd1483f69e5209bcf1f639dfe44235da6827649f2fcdf9750a'
+expected_docker_sha='8884c0eddd49ae97aff62f7831b98ac4f4030c41de40d6f60c092b9676d54ccc'
+expected_combined_sha='ba7da8d475caac9959c1e28e3c07bbb22d93133ef0e62784a0605d15fb4248de'
 current_sha="$(sha256sum "$template" | awk '{print $1}')"
-if [[ "$current_sha" == "$expected_patched_sha" ]]; then
+if [[ "$current_sha" == "$expected_patched_sha" || "$current_sha" == "$expected_combined_sha" ]]; then
   [[ "$(grep -Fc 'RE-SS-01 兼容提示' "$template")" == 1 ]]
   exit 0
 fi
-[[ "$current_sha" == "$expected_original_sha" ]] || {
+[[ "$current_sha" == "$expected_original_sha" || "$current_sha" == "$expected_docker_sha" ]] || {
   echo "unsupported QuickStart main.htm; refusing an unverified status UI patch" >&2
   exit 1
 }
@@ -44,7 +46,11 @@ awk '
 ' "$template" > "$temporary_file"
 
 patched_sha="$(sha256sum "$temporary_file" | awk '{print $1}')"
-[[ "$patched_sha" == "$expected_patched_sha" ]] || {
+expected_output_sha="$expected_patched_sha"
+if [[ "$current_sha" == "$expected_docker_sha" ]]; then
+  expected_output_sha="$expected_combined_sha"
+fi
+[[ "$patched_sha" == "$expected_output_sha" ]] || {
   echo "QuickStart patch output did not match the reviewed template" >&2
   exit 1
 }
