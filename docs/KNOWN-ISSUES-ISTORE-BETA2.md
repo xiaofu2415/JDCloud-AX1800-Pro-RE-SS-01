@@ -22,6 +22,8 @@ beta.7 已把本次真机复现的占位节点问题固化到构建源码中：
 - 当 `passwall2.rulenode.default_node` 为 `examplenode`（或其他已知占位值）且只存在一个真实节点时，启动同步会写入该节点；没有真实节点或存在多个真实节点时不会猜选，并通过系统日志提示用户明确选择。
 - 同步服务启动顺序调整为早于 stock PassWall2 服务，并同时检查 `pidof xray` 与活动 ACL 文件，避免仅凭 init 状态误报 Core 运行中。
 - 当前现场已验证 `DirectFront`、`DirectGame` 为 `_direct`，活动配置为 `default:Reality`，Core 运行中；百度、Google、GitHub 测试分别返回约 1550、939、982 ms。旧的权限错误只保留在历史日志中，不能代表当前失败。
+- beta.7 两个变体均不再打包 Docker/Dockerman，QuickStart 也不再声明 Docker 能力；`storage` 分区仍不自动格式化或挂载，Samba 数据目录须在分区核验后另行配置。
+- beta.7 对 `luci-mod-status` 的信道分析图表加入隐藏标签延迟初始化，避免 2.4 GHz/5 GHz 图表在 `display:none` 时以零宽度生成重叠标签。
 
 beta.7 仍需在刷入后完成 Reality 与 Hysteria2 各至少 30 分钟无 OOM、节点切换、重启和断电重启验收；云端构建成功本身不等于这些真机门槛已通过。
 

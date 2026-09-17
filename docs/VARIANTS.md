@@ -29,12 +29,11 @@ QuickStart 是 iStore 变体的首页应用和登录落地页，不是完整的 
 - PassWall2（Xray、nftables）
 - MosDNS 与 AdGuard Home
 - nlbwmon
-- Docker 与 Dockerman
 - Tailscale
 - SQM 与 NSS SQM 脚本
 - Argon、Bootstrap 和简体中文
 
-首次启动时，PassWall2、MosDNS、AdGuard Home、Docker、Tailscale、Samba 和 SQM 保持禁用；nlbwmon 启用并只保留 3 期数据库。PassWall2 的 `DirectFront` 与 `DirectGame` 默认映射到“直连”，而全局主开关仍为关闭；用户明确启用主开关后，启动同步脚本会在重启时同步 init 状态并启动服务。固件不会预置代理节点、账户、证书、密码或云服务凭据，也不会自动挂载 `storage`、启用 swap 或更改 LAN 默认地址。Samba 默认不创建共享或开放端口。
+首次启动时，PassWall2、MosDNS、AdGuard Home、Tailscale、Samba 和 SQM 保持禁用；nlbwmon 启用并只保留 3 期数据库。Docker/Dockerman 不包含在下一版两个变体中。PassWall2 的 `DirectFront` 与 `DirectGame` 默认映射到“直连”，而全局主开关仍为关闭；用户明确启用主开关后，启动同步脚本会在重启时同步 init 状态并启动服务。固件不会预置代理节点、账户、证书、密码或云服务凭据，也不会自动挂载 `storage`、启用 swap 或更改 LAN 默认地址。Samba 默认不创建共享或开放端口。
 
 ## iStore 兼容性边界
 

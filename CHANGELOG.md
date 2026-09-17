@@ -6,6 +6,8 @@
 
 - 修复 PassWall2 首次启动或升级后把内置 `examplenode` 当作默认节点的问题：当且仅当存在一个真实节点时自动同步 `default_node`；没有节点或存在多个节点时保留占位值并记录警告，不擅自猜选。
 - 将 RE-SS-01 PassWall2 同步服务排在 stock PassWall2 服务之前，并以实际 `xray` 进程和活动 ACL 同时判断 Core 是否运行，避免 LuCI 状态与真实进程不一致。
+- 从两个变体移除 Docker/Dockerman，并从 iStore QuickStart 首页移除 Docker 能力卡片，降低固件体积与常驻依赖；如需容器应另行制作专用构建。
+- 修复 2.4 GHz 信道分析图表在隐藏 radio 标签初始化时宽度为 0、导致信道标签挤在左侧的问题；图表改为在对应标签可见后初始化。
 - 保留 Xray 26.9.9、DirectFront/DirectGame 直连映射和默认关闭策略；Reality、Hysteria2 各 30 分钟无 OOM、节点切换及断电重启仍需真机验收。
 
 ## 0.1.0-beta.6

@@ -43,7 +43,7 @@ shasum -a 256 -c SHA256SUMS
 - 确认 LAN、WAN、无线、SSH 和标准 LuCI 正常。
 - iStore 变体确认 QuickStart 为落地页，标准 LuCI 页面由 Argon 渲染。
 - 确认 ttyd 只从 LAN 侧可用，WAN 侧不可访问。
-- 确认 PassWall2、MosDNS、AdGuard Home、Docker、Tailscale 与 SQM 保持关闭，nlbwmon 启用且保留 3 期。
+- 确认 PassWall2、MosDNS、AdGuard Home、Tailscale 与 SQM 保持关闭，nlbwmon 启用且保留 3 期；下一版固件不包含 Docker/Dockerman。
 - 至少执行一次普通重启和一次断电重启。
 
 云构建不会自动刷写路由器，也不会更改或上传路由器数据。任何实际刷写都必须由设备所有者在本地明确执行。

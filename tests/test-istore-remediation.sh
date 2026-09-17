@@ -43,6 +43,8 @@ passwall_hardener="$repo_root/.github/scripts/harden-passwall2-xray.sh"
 passwall_shunt_hardener="$repo_root/.github/scripts/harden-passwall2-shunt-defaults.sh"
 xray_pinner="$repo_root/.github/scripts/pin-xray-core.sh"
 quickstart_ui_hardener="$repo_root/.github/scripts/harden-quickstart-status-ui.sh"
+quickstart_docker_hardener="$repo_root/.github/scripts/harden-quickstart-no-docker.sh"
+channel_hardener="$repo_root/.github/scripts/harden-channel-analysis.sh"
 samba_acl_verifier="$repo_root/.github/scripts/verify-samba4-acl.sh"
 feed_defaults="$repo_root/files/etc/uci-defaults/98-re-ss-01-apk-feeds"
 service_defaults="$repo_root/files/etc/uci-defaults/99-re-ss-01-services"
@@ -56,6 +58,8 @@ require_executable "$passwall_hardener"
 require_executable "$passwall_shunt_hardener"
 require_executable "$xray_pinner"
 require_executable "$quickstart_ui_hardener"
+require_executable "$quickstart_docker_hardener"
+require_executable "$channel_hardener"
 require_executable "$samba_acl_verifier"
 require_file "$feed_defaults"
 require_file "$ttyd_rebind"
@@ -69,14 +73,27 @@ require_match "$ttyd_rebind" 'ttyd_init.*restart|/etc/init\.d/ttyd.*restart'
 require_text "$config" 'CONFIG_PACKAGE_luci-app-samba4=y'
 require_text "$config" 'CONFIG_PACKAGE_samba4-server=y'
 require_text "$config" 'CONFIG_PACKAGE_block-mount=y'
+for variant_config in "$repo_root/configs/re-ss-01-argon.config" "$repo_root/configs/re-ss-01-istore.config"; do
+  if grep -Fqx 'CONFIG_PACKAGE_luci-app-dockerman=y' "$variant_config"; then
+    echo "Docker/Dockerman must not be included in the next firmware configs: ${variant_config#"$repo_root/"}" >&2
+    exit 1
+  fi
+done
 require_match "$workflow" 'bash \.github/scripts/harden-passwall2-xray\.sh openwrt/feeds/passwall2/luci-app-passwall2'
 require_match "$workflow" 'bash \.github/scripts/harden-passwall2-shunt-defaults\.sh openwrt/feeds/passwall2/luci-app-passwall2/root/usr/share/passwall2/0_default_config'
 require_match "$workflow" 'bash \.github/scripts/pin-xray-core\.sh openwrt/feeds/packages/net/xray-core/Makefile'
 require_match "$workflow" 'bash \.github/scripts/harden-quickstart-status-ui\.sh openwrt/feeds/nas_luci/luci/luci-app-quickstart'
+require_match "$workflow" 'bash \.github/scripts/harden-quickstart-no-docker\.sh openwrt/feeds/nas_luci/luci/luci-app-quickstart/luasrc/view/quickstart/main\.htm'
+require_match "$workflow" 'bash \.github/scripts/harden-channel-analysis\.sh openwrt/feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/channel_analysis\.js'
+require_match "$workflow" 'CONFIG_PACKAGE_\$\{package\}=y'
 require_match "$workflow" 'bash \.github/scripts/verify-samba4-acl\.sh openwrt/feeds/luci/applications/luci-app-samba4'
 require_text "$repo_root/versions/istore.version" '0.1.0-beta.7'
 
 packages="$($required_packages istore)"
+if grep -Fxq 'luci-app-dockerman' <<< "$packages"; then
+  echo "Docker/Dockerman must not be a required package" >&2
+  exit 1
+fi
 for package in luci-app-samba4 samba4-server block-mount; do
   grep -Fxq "$package" <<< "$packages" || {
     echo "iStore package policy is missing: $package" >&2
@@ -226,6 +243,49 @@ fi
 cp "$quickstart_template" "$temporary/quickstart-after-once.htm"
 "$quickstart_ui_hardener" "$quickstart_feed"
 diff -u "$temporary/quickstart-after-once.htm" "$quickstart_template"
+
+quickstart_no_docker="$temporary/quickstart-no-docker"
+mkdir -p "$quickstart_no_docker/luasrc/view/quickstart"
+cp "$repo_root/tests/fixtures/quickstart/main.htm" "$quickstart_no_docker/luasrc/view/quickstart/main.htm"
+quickstart_no_docker_template="$quickstart_no_docker/luasrc/view/quickstart/main.htm"
+"$quickstart_docker_hardener" "$quickstart_no_docker_template"
+if grep -Fq 'dockerd' "$quickstart_no_docker_template"; then
+  echo "QuickStart must not advertise Docker when Docker is removed" >&2
+  exit 1
+fi
+cp "$quickstart_no_docker_template" "$temporary/quickstart-no-docker-after-once.htm"
+"$quickstart_docker_hardener" "$quickstart_no_docker_template"
+diff -u "$temporary/quickstart-no-docker-after-once.htm" "$quickstart_no_docker_template"
+
+unknown_quickstart_no_docker="$temporary/unknown-quickstart-no-docker.htm"
+cp "$repo_root/tests/fixtures/quickstart/main.htm" "$unknown_quickstart_no_docker"
+printf '%s\n' '<!-- upstream changed -->' >> "$unknown_quickstart_no_docker"
+cp "$unknown_quickstart_no_docker" "$temporary/unknown-quickstart-no-docker-before.htm"
+if "$quickstart_docker_hardener" "$unknown_quickstart_no_docker" >/dev/null 2>&1; then
+  echo "QuickStart Docker hardener must reject an unknown upstream template" >&2
+  exit 1
+fi
+diff -u "$temporary/unknown-quickstart-no-docker-before.htm" "$unknown_quickstart_no_docker"
+
+channel_file="$temporary/channel_analysis.js"
+cp "$repo_root/tests/fixtures/channel_analysis.js" "$channel_file"
+"$channel_hardener" "$channel_file"
+grep -Fq 'offsetWidth<1' "$channel_file"
+grep -Fq 'initialized' "$channel_file"
+grep -Fq 'freq_tbl' "$channel_file"
+grep -Fq 'cbi-tab-active' "$channel_file"
+cp "$channel_file" "$temporary/channel-after-once.js"
+"$channel_hardener" "$channel_file"
+diff -u "$temporary/channel-after-once.js" "$channel_file"
+
+unknown_channel="$temporary/unknown-channel_analysis.js"
+cp "$repo_root/tests/fixtures/channel_analysis-unknown.js" "$unknown_channel"
+cp "$unknown_channel" "$temporary/unknown-channel-before.js"
+if "$channel_hardener" "$unknown_channel" >/dev/null 2>&1; then
+  echo "Channel analysis hardener must reject an unknown upstream module" >&2
+  exit 1
+fi
+diff -u "$temporary/unknown-channel-before.js" "$unknown_channel"
 
 unknown_quickstart="$temporary/unknown-quickstart"
 mkdir -p "$unknown_quickstart/luasrc/view/quickstart"

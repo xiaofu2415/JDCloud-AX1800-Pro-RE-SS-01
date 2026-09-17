@@ -161,7 +161,6 @@ common_packages = %w[
   CONFIG_PACKAGE_luci-app-mosdns=y
   CONFIG_PACKAGE_luci-app-adguardhome=y
   CONFIG_PACKAGE_luci-app-nlbwmon=y
-  CONFIG_PACKAGE_luci-app-dockerman=y
   CONFIG_PACKAGE_tailscale=y
   CONFIG_PACKAGE_luci-app-sqm=y
   CONFIG_PACKAGE_sqm-scripts-nss=y
@@ -458,7 +457,7 @@ assert_first_boot_policy() {
   executable_text="$(sed -E '/^[[:space:]]*$/d; /^[[:space:]]*#[^!]/d; s/[[:space:]]+#.*$//' "$policy_file")"
   expected_executable="$(cat <<'EOF'
 #!/bin/sh
-for service in passwall2 mosdns adguardhome dockerd tailscale sqm samba4; do
+for service in passwall2 mosdns adguardhome tailscale sqm samba4; do
 	[ -x "/etc/init.d/$service" ] && /etc/init.d/$service disable
 done
 uci -q set passwall2.@global[0].enabled='0'
@@ -555,7 +554,6 @@ common_required_packages=(
   luci-app-mosdns
   luci-app-adguardhome
   luci-app-nlbwmon
-  luci-app-dockerman
   tailscale
   luci-app-sqm
   sqm-scripts-nss

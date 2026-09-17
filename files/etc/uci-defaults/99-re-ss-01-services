@@ -3,7 +3,7 @@
 # This runs after 50_luci-quickstart. QuickStart remains the first LuCI menu entry
 # in the iStore package and therefore the landing page; do not add a competing redirect.
 # Keep optional, resource-intensive services dormant until the user configures them.
-for service in passwall2 mosdns adguardhome dockerd tailscale sqm samba4; do
+for service in passwall2 mosdns adguardhome tailscale sqm samba4; do
 	[ -x "/etc/init.d/$service" ] && /etc/init.d/$service disable
 done
 

@@ -12,7 +12,6 @@ common_packages=(
   luci-app-mosdns
   luci-app-adguardhome
   luci-app-nlbwmon
-  luci-app-dockerman
   tailscale
   luci-app-sqm
   sqm-scripts-nss

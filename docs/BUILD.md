@@ -25,6 +25,8 @@
 
 ## 构建过程与产物
 
+工作流不会自动安装 Docker/Dockerman；两个变体均以无容器运行时的基线构建。若以后需要容器，应先确认 `storage` 分区和内存余量，再另行维护专用变体。
+
 工作流会依次：
 
 1. 解析变体、配置、版本、标签和发布类型。
@@ -32,7 +34,7 @@
 3. 克隆当时最新的 `25.12-nss` 提交并记录源码提交号。
 4. 安装公共 feed；只为 `istore` 加入固定的 iStore 与 QuickStart feed。
 5. 对 PassWall2 的运行目录/临时 Xray 链接、默认直连分流映射、Samba4 rpcd ACL 和 iStore QuickStart 状态模板执行内容校验 hardener；若上游实现发生未知变化或出现危险 ACL 则停止构建。
-6. 仅对 `istore` 禁用 QuickStart 的自动改网服务与 WAN 事件钩子，并加入 Samba（默认关闭）；若上游实现发生未知变化则停止构建。
+6. 对 `luci-mod-status` 信道分析图表执行隐藏标签布局 hardener；仅对 `istore` 禁用 QuickStart 的自动改网服务与 WAN 事件钩子、移除 Docker 能力卡片，并加入 Samba（默认关闭）；若上游实现发生未知变化则停止构建。
 7. 载入所选配置并在 `make defconfig` 后验证必需包。
 8. 编译、执行 RE-SS-01 factory 64 KiB 对齐、收集并校验发布文件。
 9. 生成 `BUILD-METADATA.txt` 与 `SHA256SUMS`，然后按变体发布。
