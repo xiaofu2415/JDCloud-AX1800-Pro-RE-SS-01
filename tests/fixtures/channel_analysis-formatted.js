@@ -1,0 +1,28 @@
+'use strict';
+'require view';
+
+return view.extend({
+	create_channel_graph(chan_analysis, freq_tbl, band) {
+		const columns = (band != 2) ? freq_tbl.length * 4 : freq_tbl.length + 3;
+		createGraphHLine(G,curr_offset+step, 0.1, 1);
+
+		chan_analysis.tab.addEventListener('cbi-tab-active', L.bind(function(ev) {
+			this.active_tab = ev.detail.tab;
+			if (!this.radios[this.active_tab].loadedOnce)
+				poll.start();
+		}, this));
+	},
+
+	render() {
+		const graph_data = {
+			graph: csvg,
+			offset_tbl: {},
+			col_width: 0,
+			tab: tab,
+		};
+
+		requestAnimationFrame(L.bind(this.create_channel_graph, this, graph_data, bands[band].channels, band));
+		ui.tabs.initTabGroup(tabs.firstElementChild.childNodes);
+		this.pollFn = L.bind(this.handleScanRefresh, this);
+	}
+});
