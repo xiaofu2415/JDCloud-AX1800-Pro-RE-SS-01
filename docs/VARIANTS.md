@@ -7,7 +7,7 @@
 | 项目 | Argon | iStoreOS Dashboard |
 | --- | --- | --- |
 | 变体标识 | `argon` | `istore` |
-| 当前版本 | `1.0.0` | `0.1.0-beta.6` |
+| 当前版本 | `1.0.0` | `0.1.0-beta.7` |
 | 成熟度 | 已刷入真机并验证可启动的稳定版 | 等待完整真机验收的 beta |
 | 登录落地页 | 标准 LuCI 页面 | QuickStart 首页（默认落地页） |
 | 普通管理页 | Argon 渲染标准 LuCI 页面 | Argon 渲染标准 LuCI 页面 |
@@ -18,7 +18,7 @@
 
 QuickStart 是 iStore 变体的首页应用和登录落地页，不是完整的 LuCI 主题。网络、系统、服务和插件等标准 LuCI 页面仍由 Argon 显示；不存在一个单独的“Argon 首页”入口。
 
-在 RE-SS-01 上只把 QuickStart 当作状态 Dashboard 使用。beta.6 已关闭其自动网络改写和 WAN 事件钩子，并在首页标注温度、整盘容量的兼容口径；不要使用 QuickStart 网络向导，所有 LAN、WAN、DHCP 与无线设置都通过标准 LuCI 完成。
+在 RE-SS-01 上只把 QuickStart 当作状态 Dashboard 使用。beta.7 延续关闭自动网络改写和 WAN 事件钩子的策略，并在首页标注温度、整盘容量的兼容口径；不要使用 QuickStart 网络向导，所有 LAN、WAN、DHCP 与无线设置都通过标准 LuCI 完成。
 
 在 iStore beta 完成启动、网络、页面、重启与断电重启等硬件验收前，Argon `1.0.0` 仍是稳定推荐。不要把云端编译成功视为物理设备验证通过。
 

@@ -5,9 +5,32 @@ set -eu
 UCI_BIN="${RE_SS_01_UCI:-uci}"
 INIT_DIR="${RE_SS_01_INIT_DIR:-/etc/init.d}"
 PASSWALL2_INIT="${INIT_DIR}/passwall2"
+ACL_PATH="${RE_SS_01_ACL_PATH:-/tmp/etc/passwall2/acl/acl_default.json}"
 
 uci_get() {
 	"${UCI_BIN}" -q get "$1" 2>/dev/null
+}
+
+log_warning() {
+	if command -v logger >/dev/null 2>&1; then
+		logger -t re-ss-01-passwall2-sync "$*" 2>/dev/null || true
+	fi
+}
+
+is_placeholder_node() {
+	case "${1:-}" in
+		examplenode|examplenode_*|example|placeholder)
+			return 0
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+list_node_sections() {
+	"${UCI_BIN}" -q show passwall2 2>/dev/null |
+		sed -n 's/^passwall2\.\([^.=]*\)=nodes$/\1/p'
 }
 
 sync_direct_rule_mappings() {
@@ -26,6 +49,58 @@ sync_direct_rule_mappings() {
 	done
 }
 
+sync_placeholder_default_node() {
+	# A freshly installed PassWall2 feed includes examplenode as a harmless
+	# placeholder. Once a user has exactly one real node, select it as the
+	# shunt fallback; never overwrite an explicit real-node choice.
+	uci_get passwall2.rulenode >/dev/null 2>&1 || return 0
+	current="$(uci_get passwall2.rulenode.default_node 2>/dev/null || true)"
+	case "$current" in
+		examplenode|examplenode_*|example|placeholder)
+			;;
+		*)
+			return 0
+			;;
+	esac
+
+	candidates="$(list_node_sections || true)"
+	candidate=''
+	count=0
+	while IFS= read -r node; do
+		[ -n "$node" ] || continue
+		[ "$node" = rulenode ] && continue
+		if is_placeholder_node "$node"; then
+			continue
+		fi
+		count=$((count + 1))
+		candidate="$node"
+	done <<EOF
+$candidates
+EOF
+
+	case "$count" in
+		1)
+			[ "$current" = "$candidate" ] ||
+				"${UCI_BIN}" -q set "passwall2.rulenode.default_node='$candidate'"
+			;;
+		0)
+			log_warning "PassWall2 default node is still a placeholder; no real node is configured"
+			;;
+		*)
+			log_warning "PassWall2 default node is still a placeholder; ${count} real nodes require an explicit choice"
+			;;
+	esac
+}
+
+core_running() {
+	if command -v pidof >/dev/null 2>&1; then
+		pidof xray >/dev/null 2>&1 || return 1
+		[ -s "$ACL_PATH" ] || return 1
+		return 0
+	fi
+	"$PASSWALL2_INIT" status >/dev/null 2>&1
+}
+
 sync_service_state() {
 	[ -x "$PASSWALL2_INIT" ] || return 0
 
@@ -35,8 +110,9 @@ sync_service_state() {
 			# A user-enabled global switch must survive a reboot even when a
 			# first-boot policy previously disabled the package init script.
 			"$PASSWALL2_INIT" enable >/dev/null 2>&1 || true
-			# Avoid restarting a healthy core on every policy invocation.
-			if ! "$PASSWALL2_INIT" status >/dev/null 2>&1; then
+			# Avoid restarting a healthy core on every policy invocation, but do not
+			# trust an init status that can succeed while Xray/ACL is absent.
+			if ! core_running; then
 				"$PASSWALL2_INIT" start
 			fi
 			;;
@@ -49,6 +125,7 @@ sync_service_state() {
 
 sync_passwall2() {
 	sync_direct_rule_mappings
+	sync_placeholder_default_node
 	sync_service_state
 	"${UCI_BIN}" -q commit passwall2 >/dev/null 2>&1 || true
 }

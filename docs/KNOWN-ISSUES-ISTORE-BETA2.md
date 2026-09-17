@@ -15,6 +15,16 @@
 | P1 | SQM 默认接口无效 | SQM 默认实例指向不存在的 `eth1`；真实 WAN 设备为 `wan` | 若直接启用，整形不会按预期工作 |
 | P2 | eMMC 数据分区与 swap 未投入使用 | `/overlay` 正常，但约 3.98 GiB 的 `storage` 和约 512 MiB 的 swap 未挂载/未启用 | Docker、Samba 可用空间不足；内存压力时没有交换空间兜底 |
 
+## beta.7 PassWall2 修复记录
+
+beta.7 已把本次真机复现的占位节点问题固化到构建源码中：
+
+- 当 `passwall2.rulenode.default_node` 为 `examplenode`（或其他已知占位值）且只存在一个真实节点时，启动同步会写入该节点；没有真实节点或存在多个真实节点时不会猜选，并通过系统日志提示用户明确选择。
+- 同步服务启动顺序调整为早于 stock PassWall2 服务，并同时检查 `pidof xray` 与活动 ACL 文件，避免仅凭 init 状态误报 Core 运行中。
+- 当前现场已验证 `DirectFront`、`DirectGame` 为 `_direct`，活动配置为 `default:Reality`，Core 运行中；百度、Google、GitHub 测试分别返回约 1550、939、982 ms。旧的权限错误只保留在历史日志中，不能代表当前失败。
+
+beta.7 仍需在刷入后完成 Reality 与 Hysteria2 各至少 30 分钟无 OOM、节点切换、重启和断电重启验收；云端构建成功本身不等于这些真机门槛已通过。
+
 ## 已取证但仍需在 beta.3 回归
 
 ### PassWall2 当前状态与修复边界

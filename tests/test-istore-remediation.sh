@@ -74,7 +74,7 @@ require_match "$workflow" 'bash \.github/scripts/harden-passwall2-shunt-defaults
 require_match "$workflow" 'bash \.github/scripts/pin-xray-core\.sh openwrt/feeds/packages/net/xray-core/Makefile'
 require_match "$workflow" 'bash \.github/scripts/harden-quickstart-status-ui\.sh openwrt/feeds/nas_luci/luci/luci-app-quickstart'
 require_match "$workflow" 'bash \.github/scripts/verify-samba4-acl\.sh openwrt/feeds/luci/applications/luci-app-samba4'
-require_text "$repo_root/versions/istore.version" '0.1.0-beta.6'
+require_text "$repo_root/versions/istore.version" '0.1.0-beta.7'
 
 packages="$($required_packages istore)"
 for package in luci-app-samba4 samba4-server block-mount; do
@@ -254,4 +254,4 @@ if "$samba_acl_verifier" "$vulnerable_samba" >/dev/null 2>&1; then
 fi
 diff -u "$temporary/vulnerable-samba4-before.json" "$vulnerable_samba/root/usr/share/rpcd/acl.d/luci-app-samba4.json"
 
-echo "iStore beta.6 remediation contracts: ok"
+echo "iStore beta.7 remediation contracts: ok"

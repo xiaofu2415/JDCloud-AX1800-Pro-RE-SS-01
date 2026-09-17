@@ -2,6 +2,12 @@
 
 本文件按产品版本记录用户可见变化。Argon 与 iStoreOS Dashboard 使用独立版本线。
 
+## 0.1.0-beta.7
+
+- 修复 PassWall2 首次启动或升级后把内置 `examplenode` 当作默认节点的问题：当且仅当存在一个真实节点时自动同步 `default_node`；没有节点或存在多个节点时保留占位值并记录警告，不擅自猜选。
+- 将 RE-SS-01 PassWall2 同步服务排在 stock PassWall2 服务之前，并以实际 `xray` 进程和活动 ACL 同时判断 Core 是否运行，避免 LuCI 状态与真实进程不一致。
+- 保留 Xray 26.9.9、DirectFront/DirectGame 直连映射和默认关闭策略；Reality、Hysteria2 各 30 分钟无 OOM、节点切换及断电重启仍需真机验收。
+
 ## 0.1.0-beta.6
 
 - 持久化 PassWall2 内置 `DirectFront`、`DirectGame` 到“直连”，并在构建阶段对上游 `0_default_config` 做严格、幂等的映射校验，避免自定义直连域名意外落到默认代理节点。

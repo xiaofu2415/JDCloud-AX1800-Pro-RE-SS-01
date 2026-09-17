@@ -19,7 +19,7 @@
 当前版本文件分别为：
 
 - Argon：`versions/argon.version`，当前 `1.0.0`
-- iStore：`versions/istore.version`，当前 `0.1.0-beta.6`
+- iStore：`versions/istore.version`，当前 `0.1.0-beta.7`
 
 重建同一 Release 前必须先更新对应的版本文件，并提交该版本变更。不得重复使用已有产品版本覆盖 Release；工作流发现精确标签已经存在时，会在安装依赖和编译之前失败。修复后重新发布时应递增版本，例如从 `0.1.0-beta.2` 更新为 `0.1.0-beta.3`，而不是删除旧标签后重用版本号。
 
