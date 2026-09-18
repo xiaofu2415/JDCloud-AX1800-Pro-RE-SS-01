@@ -117,8 +117,11 @@ sync_service_state() {
 			fi
 			;;
 		*)
-			# Default-off remains explicit and does not start any proxy core.
-			"$PASSWALL2_INIT" disable >/dev/null 2>&1 || true
+			# Keep the init service enabled while the global switch remains off.
+			# PassWall2's own app.sh gates proxy startup on this UCI switch, so this
+			# preserves the default-off policy while allowing a later LuCI
+			# Save & Apply to start the service instead of leaving init disabled.
+			"$PASSWALL2_INIT" enable >/dev/null 2>&1 || true
 			;;
 	esac
 }

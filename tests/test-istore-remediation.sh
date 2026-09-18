@@ -87,7 +87,7 @@ require_match "$workflow" 'bash \.github/scripts/harden-quickstart-no-docker\.sh
 require_match "$workflow" 'bash \.github/scripts/harden-channel-analysis\.sh openwrt/feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/channel_analysis\.js'
 require_match "$workflow" 'CONFIG_PACKAGE_\$\{package\}=y'
 require_match "$workflow" 'bash \.github/scripts/verify-samba4-acl\.sh openwrt/feeds/luci/applications/luci-app-samba4'
-require_text "$repo_root/versions/istore.version" '0.1.0-beta.7'
+require_text "$repo_root/versions/istore.version" '0.1.0-beta.8'
 
 packages="$($required_packages istore)"
 if grep -Fxq 'luci-app-dockerman' <<< "$packages"; then
@@ -340,4 +340,4 @@ if "$samba_acl_verifier" "$vulnerable_samba" >/dev/null 2>&1; then
 fi
 diff -u "$temporary/vulnerable-samba4-before.json" "$vulnerable_samba/root/usr/share/rpcd/acl.d/luci-app-samba4.json"
 
-echo "iStore beta.7 remediation contracts: ok"
+echo "iStore beta.8 remediation contracts: ok"

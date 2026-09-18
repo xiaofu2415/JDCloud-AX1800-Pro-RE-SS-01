@@ -150,8 +150,9 @@ run_sync() {
     "$sync" sync
 }
 
-# A fresh image has the stock DirectFront rule and rulenode section, but the
-# service remains dormant until the user explicitly enables PassWall2.
+# A fresh image has the stock DirectFront rule and rulenode section. The
+# global switch remains off, but init stays enabled so a later LuCI toggle can
+# start PassWall2 without a second manual change in the startup page.
 printf '1\n' > "$fixture/state/rulenode"
 printf '1\n' > "$fixture/state/rule"
 run_sync
@@ -159,7 +160,8 @@ grep -Fxq "passwall2.rulenode.DirectFront='_direct'" "$fixture/state/uci-calls"
 grep -Fxq "passwall2.rulenode.DirectGame='_direct'" "$fixture/state/uci-calls"
 grep -Fxq "passwall2.rulenode.default_node='08iyICrG'" "$fixture/state/uci-calls"
 grep -Fxq 'commit passwall2' "$fixture/state/uci-calls"
-grep -Fxq 'disable' "$fixture/state/service-calls"
+grep -Fxq 'enable' "$fixture/state/service-calls"
+! grep -Fxq 'disable' "$fixture/state/service-calls"
 ! grep -Fxq 'start' "$fixture/state/service-calls"
 
 # Once the user enables the global switch, the policy must make the init
