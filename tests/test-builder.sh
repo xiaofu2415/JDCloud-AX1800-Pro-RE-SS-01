@@ -57,7 +57,7 @@ require_text.call("README.md", "https://github.com/xiaofu2415/JDCloud-AX1800-Pro
 end
 require_text.call("README.md", "SECURITY.md", "the SECURITY guide link")
 require_match.call("README.md", /Argon.{0,40}`1\.0\.0`.{0,40}(稳定|stable)/i, "Argon 1.0.0 as stable")
-require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.8`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.8 as beta")
+require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.9`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.9 as beta")
 require_match.call("README.md", /QuickStart.{0,80}(自动改网|自动修改网络).{0,80}(关闭|禁用)/i, "disabled QuickStart automatic network mutation")
 
 require_match.call("docs/VARIANTS.md", /QuickStart.{0,40}(首页|落地页)/i, "QuickStart as the iStore landing page")
@@ -144,10 +144,10 @@ variants = {
   },
   "istore" => {
     "config" => "configs/re-ss-01-istore.config",
-    "version" => "0.1.0-beta.8",
-    "tag" => "re-ss-01-istore-v0.1.0-beta.8",
-    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.8",
-    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.8",
+    "version" => "0.1.0-beta.9",
+    "tag" => "re-ss-01-istore-v0.1.0-beta.9",
+    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.9",
+    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.9",
     "prerelease" => "true"
   }
 }
@@ -820,8 +820,8 @@ Dir.mktmpdir("release fixtures ") do |root|
   source = fixture.call("source")
   output = File.join(root, "published")
   config = "configs/re-ss-01-istore.config"
-  version = "0.1.0-beta.8"
-  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.8"
+  version = "0.1.0-beta.9"
+  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.9"
   args = ["istore", version, "source-sha", "builder-sha", config]
   # A different working directory must not change which config gets copied.
   Dir.chdir(root) { run.call(true, "prepare", prepare, source, output, *args) }

@@ -46,6 +46,9 @@ quickstart_ui_hardener="$repo_root/.github/scripts/harden-quickstart-status-ui.s
 quickstart_docker_hardener="$repo_root/.github/scripts/harden-quickstart-no-docker.sh"
 channel_hardener="$repo_root/.github/scripts/harden-channel-analysis.sh"
 samba_acl_verifier="$repo_root/.github/scripts/verify-samba4-acl.sh"
+temperature_helper="$repo_root/files/usr/libexec/re-ss-01-cpu-temperature"
+temperature_controller="$repo_root/files/usr/lib/lua/luci/controller/re_ss_01_quickstart.lua"
+temperature_adapter="$repo_root/files/www/luci-static/re-ss-01/quickstart-temperature.js"
 feed_defaults="$repo_root/files/etc/uci-defaults/98-re-ss-01-apk-feeds"
 service_defaults="$repo_root/files/etc/uci-defaults/99-re-ss-01-services"
 ttyd_rebind="$repo_root/files/etc/hotplug.d/iface/95-ttyd-lan-rebind"
@@ -61,6 +64,9 @@ require_executable "$quickstart_ui_hardener"
 require_executable "$quickstart_docker_hardener"
 require_executable "$channel_hardener"
 require_executable "$samba_acl_verifier"
+require_executable "$temperature_helper"
+require_file "$temperature_controller"
+require_file "$temperature_adapter"
 require_file "$feed_defaults"
 require_file "$ttyd_rebind"
 
@@ -87,7 +93,14 @@ require_match "$workflow" 'bash \.github/scripts/harden-quickstart-no-docker\.sh
 require_match "$workflow" 'bash \.github/scripts/harden-channel-analysis\.sh openwrt/feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/channel_analysis\.js'
 require_match "$workflow" 'CONFIG_PACKAGE_\$\{package\}=y'
 require_match "$workflow" 'bash \.github/scripts/verify-samba4-acl\.sh openwrt/feeds/luci/applications/luci-app-samba4'
-require_text "$repo_root/versions/istore.version" '0.1.0-beta.8'
+require_text "$repo_root/versions/istore.version" '0.1.0-beta.9'
+
+require_match "$temperature_controller" 're_ss_01_cpu_temperature'
+require_match "$temperature_controller" 're-ss-01-cpu-temperature'
+require_match "$temperature_controller" 'cpuTemperature'
+require_match "$temperature_adapter" '__reSs01TemperatureAdapter'
+require_match "$temperature_adapter" '/cgi-bin/luci/admin/status/re_ss_01_cpu_temperature'
+require_match "$temperature_adapter" 'cpuTemperature'
 
 packages="$($required_packages istore)"
 if grep -Fxq 'luci-app-dockerman' <<< "$packages"; then
@@ -103,6 +116,19 @@ done
 
 temporary="$(mktemp -d)"
 trap 'rm -rf "$temporary"' EXIT
+
+thermal_fixture="$temporary/thermal"
+mkdir -p "$thermal_fixture/thermal_zone0" "$thermal_fixture/thermal_zone4"
+printf '%s\n' 'wcss-phy0-thermal' > "$thermal_fixture/thermal_zone0/type"
+printf '%s\n' '56000' > "$thermal_fixture/thermal_zone0/temp"
+printf '%s\n' 'cpu-thermal' > "$thermal_fixture/thermal_zone4/type"
+printf '%s\n' '65700' > "$thermal_fixture/thermal_zone4/temp"
+temperature_value="$(RE_SS_01_THERMAL_ROOT="$thermal_fixture" "$temperature_helper")"
+[[ "$temperature_value" == '65.7' ]] || {
+  echo "RE-SS-01 temperature helper returned unexpected value: $temperature_value" >&2
+  exit 1
+}
+
 mkdir -p "$temporary/etc/apk/repositories.d"
 feed_file="$temporary/etc/apk/repositories.d/custom.list"
 printf '%s\n' \
@@ -235,6 +261,7 @@ cp "$quickstart_template" "$temporary/quickstart-before.htm"
 grep -Fq 'RE-SS-01 兼容提示' "$quickstart_template"
 grep -Fq '/cgi-bin/luci/admin/status/overview' "$quickstart_template"
 grep -Fq '/cgi-bin/luci/admin/system/mounts' "$quickstart_template"
+grep -Fq '/luci-static/re-ss-01/quickstart-temperature.js' "$quickstart_template"
 notice_block="$(grep -A2 -B0 'RE-SS-01 兼容提示' "$quickstart_template")"
 if grep -Eq 'https?://|<script' <<< "$notice_block"; then
   echo "QuickStart compatibility notice must not add external scripts" >&2
@@ -340,4 +367,4 @@ if "$samba_acl_verifier" "$vulnerable_samba" >/dev/null 2>&1; then
 fi
 diff -u "$temporary/vulnerable-samba4-before.json" "$vulnerable_samba/root/usr/share/rpcd/acl.d/luci-app-samba4.json"
 
-echo "iStore beta.8 remediation contracts: ok"
+echo "iStore beta.9 remediation contracts: ok"

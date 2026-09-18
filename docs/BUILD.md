@@ -19,7 +19,7 @@
 当前版本文件分别为：
 
 - Argon：`versions/argon.version`，当前 `1.0.0`
-- iStore：`versions/istore.version`，当前 `0.1.0-beta.8`
+- iStore：`versions/istore.version`，当前 `0.1.0-beta.9`
 
 重建同一 Release 前必须先更新对应的版本文件，并提交该版本变更。不得重复使用已有产品版本覆盖 Release；工作流发现精确标签已经存在时，会在安装依赖和编译之前失败。修复后重新发布时应递增版本，例如从 `0.1.0-beta.2` 更新为 `0.1.0-beta.3`，而不是删除旧标签后重用版本号。
 
@@ -33,7 +33,7 @@
 2. 拒绝已经存在的产品版本标签。
 3. 克隆当时最新的 `25.12-nss` 提交并记录源码提交号。
 4. 安装公共 feed；只为 `istore` 加入固定的 iStore 与 QuickStart feed。
-5. 对 PassWall2 的运行目录/临时 Xray 链接、默认直连分流映射、Samba4 rpcd ACL 和 iStore QuickStart 状态模板执行内容校验 hardener；若上游实现发生未知变化或出现危险 ACL 则停止构建。
+5. 对 PassWall2 的运行目录/临时 Xray 链接、默认直连分流映射、Samba4 rpcd ACL、RE-SS-01 CPU thermal-zone 读取端点和 iStore QuickStart 状态模板执行内容校验 hardener；若上游实现发生未知变化或出现危险 ACL 则停止构建。
 6. 对 `luci-mod-status` 信道分析图表执行隐藏标签布局 hardener；仅对 `istore` 禁用 QuickStart 的自动改网服务与 WAN 事件钩子、移除 Docker 能力卡片，并加入 Samba（默认关闭）；若上游实现发生未知变化则停止构建。
 7. 载入所选配置并在 `make defconfig` 后验证必需包。
 8. 编译、执行 RE-SS-01 factory 64 KiB 对齐、收集并校验发布文件。

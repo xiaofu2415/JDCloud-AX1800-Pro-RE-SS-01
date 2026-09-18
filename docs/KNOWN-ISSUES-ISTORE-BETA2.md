@@ -10,7 +10,7 @@
 | P0 | 运行时 APK 软件源包含 9 个无效仓库 | `apk update` 的核心源和 iStore compat 源成功，但 `istore`、`mosdns`、`nas`、`nas_luci`、`nss_packages`、`passwall2`、`passwall_packages`、`sqm_scripts_nss`、`video` 被错误指向 `mirrors.vsean.net/openwrt/releases/...`，返回下载错误；最终退出码为 9 | QuickStart 显示“软件源错误”，第三方包无法正常更新 |
 | P1 | Samba 管理组件缺失 | `/admin/services/samba4` 返回 404；当前配置和必需包校验均未包含 `luci-app-samba4` | 无法从 LuCI 配置 Samba，与完整版目标不符 |
 | P1 | ttyd 在 LAN 重载后曾无法访问 | `ttyd` 进程仍存在且绑定 `@lan`/`br-lan`，但 `192.168.100.1:7681` 曾拒绝连接；稍后重新连接恢复并出现登录提示 | Web 终端可用性不稳定，网络改址后可能失联 |
-| P1 | QuickStart CPU 温度显示错误 | QuickStart 显示 `0℃`，标准 LuCI 同时读取到 CPU `67.7℃`、Wi-Fi `56℃/58℃` | 首页监控数据误导 |
+| P1 | QuickStart CPU 温度显示错误（beta.2–beta.8，beta.9 已修复） | 历史版本 QuickStart 显示 `0℃`，标准 LuCI 同时读取到 CPU `67.7℃`、Wi-Fi `56℃/58℃` | 历史版本首页监控数据误导 |
 | P1 | QuickStart 磁盘容量口径错误 | QuickStart 把约 7 GiB 的整个 `mmcblk0` 显示为系统根目录；实际可写 `/overlay` 只有约 1.89 GiB | 用户可能误判可写空间并把 Docker 数据写满 overlay |
 | P1 | SQM 默认接口无效 | SQM 默认实例指向不存在的 `eth1`；真实 WAN 设备为 `wan` | 若直接启用，整形不会按预期工作 |
 | P2 | eMMC 数据分区与 swap 未投入使用 | `/overlay` 正常，但约 3.98 GiB 的 `storage` 和约 512 MiB 的 swap 未挂载/未启用 | Docker、Samba 可用空间不足；内存压力时没有交换空间兜底 |
@@ -18,6 +18,10 @@
 ## beta.8 PassWall2 修复记录
 
 beta.8 进一步修复了 PassWall2 全局开关与 init 启动项状态脱节的问题：首次启动和全局开关为 `0` 时核心仍不运行，但 init 服务保持启用；用户在 LuCI 打开主开关并保存后，不需要再到系统启动项页面手动启用。回归测试覆盖默认关闭、不误启动以及启用后的自动启动。
+
+## beta.9 QuickStart 温度修复记录
+
+beta.9 新增 `/usr/libexec/re-ss-01-cpu-temperature`，按 `cpu-thermal` 优先级读取 Qualcomm thermal zone，并通过受 LuCI 登录保护的 `/cgi-bin/luci/admin/status/re_ss_01_cpu_temperature` 返回 `cpuTemperature`。QuickStart 前端适配器只在 `/system/status/` 或 `/system/cpu/temperature/` 缺少有效温度时合并该值；上游已有有效值时保持原响应不变。当前路由器现场的标准 LuCI 读数为 65.7℃，应不再显示 0℃。
 
 ## beta.7 PassWall2 修复记录
 

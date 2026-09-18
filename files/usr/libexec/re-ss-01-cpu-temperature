@@ -1,0 +1,42 @@
+#!/bin/sh
+
+# Return the RE-SS-01 CPU thermal-zone value in degrees Celsius.
+# Qualcomm exposes several thermal zones; do not mistake Wi-Fi/NSS zones for
+# the CPU when a dedicated cpu-thermal zone is available.
+set -eu
+
+thermal_root="${RE_SS_01_THERMAL_ROOT:-/sys/class/thermal}"
+preferred=""
+fallback=""
+
+for type_file in "$thermal_root"/thermal_zone*/type; do
+	[ -f "$type_file" ] || continue
+	zone_dir="${type_file%/type}"
+	type="$(cat "$type_file" 2>/dev/null || true)"
+	temp_file="$zone_dir/temp"
+	[ -r "$temp_file" ] || continue
+	raw="$(cat "$temp_file" 2>/dev/null || true)"
+	case "$raw" in
+		''|*[!0-9-]*) continue ;;
+	esac
+	case "$type" in
+		cpu-thermal)
+			preferred="$raw"
+			break
+			;;
+		*cpu*thermal*)
+			[ -n "$fallback" ] || fallback="$raw"
+			;;
+	esac
+done
+
+raw="${preferred:-$fallback}"
+[ -n "$raw" ] || exit 1
+
+# OpenWrt thermal sysfs values are normally milli-degrees Celsius. Keep a
+# decimal value because QuickStart renders the value as a temperature gauge.
+if [ "$raw" -ge 1000 ] || [ "$raw" -le -1000 ]; then
+	awk -v raw="$raw" 'BEGIN { printf "%.1f\n", raw / 1000 }'
+else
+	printf '%s\n' "$raw"
+fi

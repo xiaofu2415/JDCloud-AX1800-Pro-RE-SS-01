@@ -2,6 +2,11 @@
 
 本文件按产品版本记录用户可见变化。Argon 与 iStoreOS Dashboard 使用独立版本线。
 
+## 0.1.0-beta.9
+
+- 修复 RE-SS-01 QuickStart 首页 CPU 温度始终显示 `0℃`：新增 Qualcomm thermal-zone 兼容读取端点，优先读取 `cpu-thermal`，并让首页仅在上游温度字段为空时合并该值。
+- 增加温度读取脚本、LuCI 认证端点、QuickStart 前端适配器和 fixture 回归测试；不修改标准 LuCI 温度显示，也不自动修改存储分区或 swap 策略。
+
 ## 0.1.0-beta.8
 
 - 修复 PassWall2 全局主开关与 init 启动项状态脱节：全局开关为 0 时保持核心关闭，但不再把 init 服务留在“已禁用”；用户在 LuCI 打开主开关并保存后可直接启动，重启后也能保持一致。
