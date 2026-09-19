@@ -15,6 +15,8 @@ bash "$repo_root/tests/test-quickstart-hardening.sh"
 
 bash "$repo_root/tests/test-passwall2-policy.sh"
 
+bash "$repo_root/tests/test-stable-candidate.sh"
+
 ruby - "$repo_root" <<'RUBY'
 repo = ARGV.fetch(0)
 paths = %w[
@@ -43,10 +45,10 @@ factory_sysupgrade_contract = lambda do |text|
     text.include?("- `squashfs-sysupgrade.bin`：只用于已经运行兼容 LibWrt/OpenWrt、且确认分区布局匹配时，通过 LuCI 或命令行升级。")
 end
 istore_not_latest_contract = lambda do |text|
-  text.include?("iStoreOS Dashboard beta 永远是 Prerelease，且必须显式设置为非 Latest。")
+  text.include?("iStoreOS Dashboard RC 仍是 Prerelease，且必须显式设置为非 Latest。")
 end
 physical_merge_gate_contract = lambda do |text|
-  text.include?("即使 beta 编译成功，也必须完成真机硬件验证后，才允许合并到 `main`。")
+  text.include?("即使 RC 编译成功，也必须完成真机硬件验证后，才允许合并到 `main`。")
 end
 
 readme = read.call("README.md")
@@ -57,7 +59,7 @@ require_text.call("README.md", "https://github.com/xiaofu2415/JDCloud-AX1800-Pro
 end
 require_text.call("README.md", "SECURITY.md", "the SECURITY guide link")
 require_match.call("README.md", /Argon.{0,40}`1\.0\.0`.{0,40}(稳定|stable)/i, "Argon 1.0.0 as stable")
-require_match.call("README.md", /iStore.{0,40}`0\.1\.0-beta\.9`.{0,40}(测试|实验|beta)/i, "iStore 0.1.0-beta.9 as beta")
+require_match.call("README.md", /iStore.{0,40}`0\.1\.0-rc\.1`.{0,40}(候选|测试|实验|RC)/i, "iStore 0.1.0-rc.1 as release candidate")
 require_match.call("README.md", /QuickStart.{0,80}(自动改网|自动修改网络).{0,80}(关闭|禁用)/i, "disabled QuickStart automatic network mutation")
 
 require_match.call("docs/VARIANTS.md", /QuickStart.{0,40}(首页|落地页)/i, "QuickStart as the iStore landing page")
@@ -102,11 +104,11 @@ without_image_purposes = flashing
 releases = read.call("docs/RELEASES.md")
 without_istore_not_latest = releases
   .gsub("Prerelease，永不为 Latest", "Prerelease")
-  .gsub("iStoreOS Dashboard beta 永远是 Prerelease，且必须显式设置为非 Latest。", "iStoreOS Dashboard beta 是 Prerelease。")
+  .gsub("iStoreOS Dashboard RC 仍是 Prerelease，且必须显式设置为非 Latest。", "iStoreOS Dashboard RC 是 Prerelease。")
 build = read.call("docs/BUILD.md")
 inverted_physical_gate = build.sub(
-  "即使 beta 编译成功，也必须完成真机硬件验证后，才允许合并到 `main`。",
-  "即使 beta 编译成功，也允许在没有完成真机硬件验证时合并到 `main`。"
+  "即使 RC 编译成功，也必须完成真机硬件验证后，才允许合并到 `main`。",
+  "即使 RC 编译成功，也允许在没有完成真机硬件验证时合并到 `main`。"
 )
 abort "factory/sysupgrade mutation fixture did not change the document" if without_image_purposes == flashing
 abort "iStore not-Latest mutation fixture did not change the document" if without_istore_not_latest == releases
@@ -144,10 +146,10 @@ variants = {
   },
   "istore" => {
     "config" => "configs/re-ss-01-istore.config",
-    "version" => "0.1.0-beta.9",
-    "tag" => "re-ss-01-istore-v0.1.0-beta.9",
-    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.9",
-    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-beta.9",
+    "version" => "0.1.0-rc.1",
+    "tag" => "re-ss-01-istore-v0.1.0-rc.1",
+    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-rc.1",
+    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-rc.1",
     "prerelease" => "true"
   }
 }
@@ -473,6 +475,11 @@ uci -q set adguardhome.config.enabled='0'
 uci -q set sqm.@queue[0].interface='wan'
 uci -q set sqm.@queue[0].enabled='0'
 uci -q set nlbwmon.@nlbwmon[0].database_generations='3'
+uci -q set nlbwmon.@nlbwmon[0].commit_interval='5m'
+if [ -x /etc/init.d/re-ss-01-nlbwmon-fix ]; then
+	/etc/init.d/re-ss-01-nlbwmon-fix enable
+	/etc/init.d/re-ss-01-nlbwmon-fix start
+fi
 uci -q set luci.themes.Argon='/luci-static/argon'
 uci -q set luci.main.mediaurlbase='/luci-static/argon'
 if [ -x /etc/init.d/re-ss-01-passwall2-sync ]; then
@@ -820,8 +827,8 @@ Dir.mktmpdir("release fixtures ") do |root|
   source = fixture.call("source")
   output = File.join(root, "published")
   config = "configs/re-ss-01-istore.config"
-  version = "0.1.0-beta.9"
-  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-beta.9"
+  version = "0.1.0-rc.1"
+  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-rc.1"
   args = ["istore", version, "source-sha", "builder-sha", config]
   # A different working directory must not change which config gets copied.
   Dir.chdir(root) { run.call(true, "prepare", prepare, source, output, *args) }

@@ -1,0 +1,20 @@
+#!/bin/sh /etc/rc.common
+
+# RE-SS-01: nlbwmon must subscribe after nf_conntrack_netlink is initialized.
+# This script never changes firewall policy or formats storage; it only reloads
+# the conntrack-netlink module around the already-enabled nlbwmon service.
+START=59
+STOP=01
+USE_PROCD=0
+
+start() {
+	[ -x /etc/init.d/nlbwmon ] || return 0
+	/etc/init.d/nlbwmon enabled >/dev/null 2>&1 || return 0
+
+	/etc/init.d/nlbwmon stop >/dev/null 2>&1 || true
+	if grep -q '^nf_conntrack_netlink ' /proc/modules 2>/dev/null; then
+		rmmod nf_conntrack_netlink >/dev/null 2>&1 || true
+	fi
+	modprobe nf_conntrack_netlink >/dev/null 2>&1 || true
+	/etc/init.d/nlbwmon start >/dev/null 2>&1 || true
+}

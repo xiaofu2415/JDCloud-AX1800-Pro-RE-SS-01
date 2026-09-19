@@ -13,7 +13,8 @@
 | P1 | QuickStart CPU 温度显示错误（beta.2–beta.8，beta.9 已修复） | 历史版本 QuickStart 显示 `0℃`，标准 LuCI 同时读取到 CPU `67.7℃`、Wi-Fi `56℃/58℃` | 历史版本首页监控数据误导 |
 | P1 | QuickStart 磁盘容量口径错误 | QuickStart 把约 7 GiB 的整个 `mmcblk0` 显示为系统根目录；实际可写 `/overlay` 只有约 1.89 GiB | 用户可能误判可写空间并把 Docker 数据写满 overlay |
 | P1 | SQM 默认接口无效 | SQM 默认实例指向不存在的 `eth1`；真实 WAN 设备为 `wan` | 若直接启用，整形不会按预期工作 |
-| P2 | eMMC 数据分区与 swap 未投入使用 | `/overlay` 正常，但约 3.98 GiB 的 `storage` 和约 512 MiB 的 swap 未挂载/未启用 | Docker、Samba 可用空间不足；内存压力时没有交换空间兜底 |
+| P1（历史） | nlbwmon 服务运行但页面无记录 | beta.9 上进程和 conntrack 表均存在，但 nlbwmon 未收到可用的 `nf_conntrack_netlink` 事件；rc.1 重载模块后 `nlbw -c json list` 与 LuCI 均显示 3 个主机、49 条连接 | 旧版本首页长期显示 0；rc.1 仍需重启后复核事件链路 |
+| P2（历史） | eMMC 数据分区与 swap 未投入使用 | beta.2–beta.9 的 `/overlay` 正常，但约 3.98 GiB 的 `storage` 和约 512 MiB 的 swap 未挂载/未启用；rc.1 已加入经核验 UUID 的 fstab 条目 | 旧版本 Docker、Samba 可用空间不足；旧版本内存压力时没有交换空间兜底；rc.1 仍需真机重启验收 |
 
 ## beta.8 PassWall2 修复记录
 
@@ -30,7 +31,7 @@ beta.7 已把本次真机复现的占位节点问题固化到构建源码中：
 - 当 `passwall2.rulenode.default_node` 为 `examplenode`（或其他已知占位值）且只存在一个真实节点时，启动同步会写入该节点；没有真实节点或存在多个真实节点时不会猜选，并通过系统日志提示用户明确选择。
 - 同步服务启动顺序调整为早于 stock PassWall2 服务，并同时检查 `pidof xray` 与活动 ACL 文件，避免仅凭 init 状态误报 Core 运行中。
 - 当前现场已验证 `DirectFront`、`DirectGame` 为 `_direct`，活动配置为 `default:Reality`，Core 运行中；百度、Google、GitHub 测试分别返回约 1550、939、982 ms。旧的权限错误只保留在历史日志中，不能代表当前失败。
-- beta.7 两个变体均不再打包 Docker/Dockerman，QuickStart 也不再声明 Docker 能力；`storage` 分区仍不自动格式化或挂载，Samba 数据目录须在分区核验后另行配置。
+- beta.7 两个变体均不再打包 Docker/Dockerman，QuickStart 也不再声明 Docker 能力；beta.7 的 `storage` 分区仍不自动格式化或挂载，rc.1 才按已核验 UUID 增加非破坏性挂载和 swap 配置。
 - beta.7 对 `luci-mod-status` 的信道分析图表加入隐藏标签延迟初始化，避免 2.4 GHz/5 GHz 图表在 `display:none` 时以零宽度生成重叠标签。
 
 beta.7 仍需在刷入后完成 Reality 与 Hysteria2 各至少 30 分钟无 OOM、节点切换、重启和断电重启验收；云端构建成功本身不等于这些真机门槛已通过。
@@ -87,5 +88,5 @@ mount | grep -E ' on /tmp | on / '
 4. 修改或重载 LAN 后，ttyd 能在 10 秒内重新连接，且 WAN 侧无法访问。
 5. SQM 默认保持关闭，预设接口为 `wan`。
 6. 首页不再把 `0℃` 当作有效 CPU 温度，也不再把整块 eMMC 当作可写根目录。
-7. 不自动格式化、挂载未知数据分区，不自动启用 swap；所有存储变更必须经过真机分区确认。
+7. rc.1 只挂载已核验 UUID 的 ext4 storage，并启用已核验的 p26 swap；不格式化、覆盖或扫描未知数据分区，必须在真机重启后复核 `findmnt` 和 `swapon --show`。
 8. WAN、LAN、DHCP、DNS、2.4/5 GHz Wi-Fi、NSS、重启和断电重启回归通过。

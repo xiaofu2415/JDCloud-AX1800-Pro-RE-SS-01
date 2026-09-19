@@ -1,6 +1,6 @@
 # 存储与 swap 策略
 
-RE-SS-01 的 eMMC 约 6.96 GiB。系统可写层 `/overlay` 约 1.89 GiB；另有约 3.98 GiB 的 `storage` 分区和约 512 MiB 的 `swap` 分区。它们不是“看见分区就可以直接使用”的临时目录，必须先确认身份和数据归属。
+RE-SS-01 的 eMMC 约 6.96 GiB。系统可写层 `/overlay` 约 1.89 GiB；另有约 3.98 GiB 的 `storage` 分区和约 512 MiB 的 `swap` 分区。稳定候选固件只对已核验的设备身份声明挂载：`storage` 必须是 UUID `5d987db6-15b1-44db-9934-3bc086a4fd6e` 的 ext4，swap 必须是 `/dev/mmcblk0p26` 的已确认 swap 签名。固件不包含任何格式化或覆盖分区的命令。
 
 ## 核验顺序
 
@@ -17,18 +17,32 @@ mount
 
 ## storage 分区
 
-只有确认分区中没有需要保留的数据后，才允许创建挂载点并通过 LuCI 配置 UUID 挂载到 `/mnt/storage`。下一版固件不包含 Docker/Dockerman；若仅用于 Samba，可创建：
+稳定候选固件的 `/etc/config/fstab` 已写入上述 UUID，并以 `rw,noatime` 挂载到 `/mnt/storage`。UUID 或文件系统类型不匹配时，挂载会失败并保留分区原状；不会回退到按设备号盲挂载，也不会运行 `mkfs`。下一版固件不包含 Docker/Dockerman；若仅用于 Samba，可创建：
 
 ```text
 /mnt/storage/share    Samba 共享目录
 ```
 
-Samba 默认关闭。启用前，先确认该挂载在重启后稳定出现，并检查剩余空间、目录属主和权限。不要在未确认文件系统和数据归属时格式化或覆盖 `storage`。
+Samba 默认关闭。启用前，先确认该挂载在重启后稳定出现，并检查剩余空间、目录属主和权限。首次启动或升级后建议验证：
+
+```sh
+mountpoint -q /mnt/storage && df -h /mnt/storage
+findmnt /mnt/storage
+```
+
+不要在未确认文件系统和数据归属时格式化或覆盖 `storage`。
 
 ## swap 分区
 
-约 512 MiB 的分区默认保持关闭。只有确认它确实是 swap 分区、没有用户数据且不会与系统升级布局冲突后，才可人工配置低优先级 swap。启用前后记录 `swapon --show` 和 `free -h`；固件不自动格式化、覆盖或启用未知分区。
+已核验的 `/dev/mmcblk0p26` 以优先级 `10` 启用；`auto_swap` 保持关闭，因此其他未知分区不会被扫描或启用。验证命令：
+
+```sh
+swapon --show
+free -h
+```
+
+如果设备上的 p26 没有 swap 签名，启动脚本会跳过它，不会格式化或写入该分区。
 
 ## 回滚边界
 
-挂载或启用 swap 后如果出现启动、Samba 或升级异常，先在 LuCI 中停用相关服务，再卸载对应分区并恢复原有 fstab。任何存储变更都应保留 U-Boot Web 或已验证的 factory 恢复路径。
+挂载或启用 swap 后如果出现启动、Samba 或升级异常，先在 LuCI 中停用相关服务，再卸载对应分区并移除对应 fstab 条目。任何存储变更都应保留 U-Boot Web 或已验证的 factory 恢复路径。稳定候选验收仍要记录重启后 `findmnt /mnt/storage`、`swapon --show` 和可写测试结果。

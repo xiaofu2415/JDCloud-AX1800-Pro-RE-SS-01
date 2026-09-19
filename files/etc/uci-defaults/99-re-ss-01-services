@@ -22,6 +22,17 @@ uci -q set sqm.@queue[0].enabled='0'
 
 # Retain three monthly traffic databases instead of the upstream default of ten.
 uci -q set nlbwmon.@nlbwmon[0].database_generations='3'
+# Commit traffic data every five minutes so the LuCI page becomes observable
+# during normal acceptance; the database remains capped to three generations.
+uci -q set nlbwmon.@nlbwmon[0].commit_interval='5m'
+
+# Reload conntrack-netlink before nlbwmon subscribes so the bandwidth monitor
+# receives connection events on the NSS/firewall4 image. This does not enable
+# any proxy, firewall rule, or unknown storage device.
+if [ -x /etc/init.d/re-ss-01-nlbwmon-fix ]; then
+	/etc/init.d/re-ss-01-nlbwmon-fix enable
+	/etc/init.d/re-ss-01-nlbwmon-fix start
+fi
 
 # Argon is the rendering theme for all LuCI pages; luci-theme-bootstrap remains installed
 # as the recovery theme. ttyd is reachable only through the existing LAN-side LuCI/firewall

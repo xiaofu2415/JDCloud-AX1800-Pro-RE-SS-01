@@ -2,6 +2,13 @@
 
 本文件按产品版本记录用户可见变化。Argon 与 iStoreOS Dashboard 使用独立版本线。
 
+## 0.1.0-rc.1
+
+- 修复 nlbwmon 在 RE-SS-01/NSS 镜像上因 `nf_conntrack_netlink` 初始化时序导致的“服务运行但页面 0 条记录”：启动前重载模块，并将数据提交间隔从 `24h` 调整为 `5m`；保留 3 期数据库，正常使用几分钟后即可在 LuCI 看到统计记录。
+- 按已在 RE-SS-01 真机核验的 UUID 持久化 `/mnt/storage` ext4 挂载，并以低优先级启用已确认的 512 MiB swap；固件只声明挂载，不包含 `mkfs`、`mkswap` 或其他分区覆盖操作。
+- 增加 storage/swap 启动后核验、回滚和异常分区不自动接管的文档；Docker 仍不纳入基线。
+- 这是稳定候选版本（Release Candidate），仍需完成重启、断电重启、PassWall2、双频无线和 WAN/LAN 隔离验收后，才可转为正式稳定版。
+
 ## 0.1.0-beta.9
 
 - 修复 RE-SS-01 QuickStart 首页 CPU 温度始终显示 `0℃`：新增 Qualcomm thermal-zone 兼容读取端点，优先读取 `cpu-thermal`，并让首页仅在上游温度字段为空时合并该值。

@@ -1,0 +1,28 @@
+config global automount
+	option from_fstab '1'
+	option anon_mount '0'
+	option auto_mount '1'
+	option delay_root '5'
+	option check_fs '0'
+
+config global autoswap
+	option from_fstab '1'
+	option anon_swap '0'
+	option auto_swap '0'
+	option delay_root '5'
+
+# RE-SS-01: this UUID was verified on the device after an explicit ext4 check.
+# No formatter is shipped; a missing or different UUID is left untouched.
+config mount
+	option target '/mnt/storage'
+	option uuid '5d987db6-15b1-44db-9934-3bc086a4fd6e'
+	option fstype 'ext4'
+	option options 'rw,noatime'
+	option enabled '1'
+	option enabled_fsck '0'
+
+# RE-SS-01: the named 512 MiB partition was verified as swap before enabling.
+config swap
+	option device '/dev/mmcblk0p26'
+	option enabled '1'
+	option priority '10'

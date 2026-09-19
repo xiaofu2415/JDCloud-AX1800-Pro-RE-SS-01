@@ -7,8 +7,8 @@
 | 项目 | Argon | iStoreOS Dashboard |
 | --- | --- | --- |
 | 变体标识 | `argon` | `istore` |
-| 当前版本 | `1.0.0` | `0.1.0-beta.9` |
-| 成熟度 | 已刷入真机并验证可启动的稳定版 | 等待完整真机验收的 beta |
+| 当前版本 | `1.0.0` | `0.1.0-rc.1` |
+| 成熟度 | 已刷入真机并验证可启动的稳定版 | 稳定候选，等待最终真机验收 |
 | 登录落地页 | 标准 LuCI 页面 | QuickStart 首页（默认落地页） |
 | 普通管理页 | Argon 渲染标准 LuCI 页面 | Argon 渲染标准 LuCI 页面 |
 | 恢复主题 | Bootstrap | Bootstrap |
@@ -18,9 +18,9 @@
 
 QuickStart 是 iStore 变体的首页应用和登录落地页，不是完整的 LuCI 主题。网络、系统、服务和插件等标准 LuCI 页面仍由 Argon 显示；不存在一个单独的“Argon 首页”入口。
 
-在 RE-SS-01 上只把 QuickStart 当作状态 Dashboard 使用。beta.9 延续关闭自动网络改写和 WAN 事件钩子的策略，并为 Qualcomm CPU thermal-zone 加入首页温度兼容适配；整盘容量口径仍以标准 LuCI 挂载点页面为准。不要使用 QuickStart 网络向导，所有 LAN、WAN、DHCP 与无线设置都通过标准 LuCI 完成。
+在 RE-SS-01 上只把 QuickStart 当作状态 Dashboard 使用。rc.1 延续关闭自动网络改写和 WAN 事件钩子的策略，并为 Qualcomm CPU thermal-zone 加入首页温度兼容适配；存储容量以挂载点页面的 `/mnt/storage` 与 `/overlay` 为准。不要使用 QuickStart 网络向导，所有 LAN、WAN、DHCP 与无线设置都通过标准 LuCI 完成。
 
-在 iStore beta 完成启动、网络、页面、重启与断电重启等硬件验收前，Argon `1.0.0` 仍是稳定推荐。不要把云端编译成功视为物理设备验证通过。
+在 iStore RC 完成启动、网络、页面、重启与断电重启等硬件验收前，Argon `1.0.0` 仍是稳定推荐。不要把云端编译成功视为物理设备验证通过。
 
 ## 共同组件与默认服务
 
@@ -33,7 +33,7 @@ QuickStart 是 iStore 变体的首页应用和登录落地页，不是完整的 
 - SQM 与 NSS SQM 脚本
 - Argon、Bootstrap 和简体中文
 
-首次启动时，PassWall2 的全局主开关保持关闭，因而不会接管流量；其 init 服务保持启用，以便用户在 LuCI 打开主开关并保存后可以直接启动，不需要再去启动项页面手动启用。MosDNS、AdGuard Home、Tailscale、Samba 和 SQM 仍保持禁用；nlbwmon 启用并只保留 3 期数据库。Docker/Dockerman 不包含在下一版两个变体中。PassWall2 的 `DirectFront` 与 `DirectGame` 默认映射到“直连”。固件不会预置代理节点、账户、证书、密码或云服务凭据，也不会自动挂载 `storage`、启用 swap 或更改 LAN 默认地址。Samba 默认不创建共享或开放端口。
+首次启动时，PassWall2 的全局主开关保持关闭，因而不会接管流量；其 init 服务保持启用，以便用户在 LuCI 打开主开关并保存后可以直接启动，不需要再去启动项页面手动启用。MosDNS、AdGuard Home、Tailscale、Samba 和 SQM 仍保持禁用；nlbwmon 启用、启动前重载 conntrack-netlink、每 5m 提交一次并只保留 3 期数据库。Docker/Dockerman 不包含在下一版两个变体中。PassWall2 的 `DirectFront` 与 `DirectGame` 默认映射到“直连”。稳定候选固件只按已核验的 UUID 挂载 `storage` 并按已核验的设备启用低优先级 swap；不会格式化、覆盖或接管未知分区，也不会更改 LAN 默认地址。Samba 默认不创建共享或开放端口。
 
 ## iStore 兼容性边界
 
