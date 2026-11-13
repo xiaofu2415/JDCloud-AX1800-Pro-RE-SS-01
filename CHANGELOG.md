@@ -2,6 +2,13 @@
 
 本文件按产品版本记录用户可见变化。Argon 与 iStoreOS Dashboard 使用独立版本线。
 
+## 0.1.0-rc.3
+
+- iStore 版预装 Tailscale 和 FastNet 的 LuCI 管理入口，并在构建和固件清单中检查两个界面及 FastNet 本体。
+- Tailscale 管理后端使用与 OpenWrt 25.12 安全修复相同的源码。保留现有 Tailscale 配置和状态文件。
+- FastNet 安装或升级后默认关闭，停用旧插件留下的 FastNet WAN 放行规则，保留其监听地址、端口和其他设置。
+- 构建同时提供独立的管理插件 APK 和签名索引，供 RC2 只安装插件时核验使用。
+
 ## 0.1.0-rc.2
 
 - 限制 LAN 缺公网 IPv6 前缀时的重复告警：首次仍立即记录，持续期间每接口最多每 15 分钟记录一次；保留 RA 生命周期为 0 的行为，不改现场 IPv6 配置。

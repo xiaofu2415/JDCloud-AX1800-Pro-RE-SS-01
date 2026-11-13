@@ -27,6 +27,9 @@ case "$variant" in
   istore)
     printf '%s\n' "${common_packages[@]}" \
       luci-app-ttyd \
+      luci-app-tailscale-community \
+      fastnet \
+      luci-app-fastnet \
       luci-app-store \
       quickstart \
       luci-app-quickstart \

@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+[ -x /etc/init.d/fastnet ] || exit 0
+if uci -q get fastnet.@fastnet[0] >/dev/null &&
+	[ "$(uci -q get fastnet.@fastnet[0].enabled)" != 0 ]; then
+	uci set fastnet.@fastnet[0].enabled='0'
+	uci commit fastnet
+fi
+/etc/init.d/fastnet disable
+
+# Only migrate the named, legacy WAN rule created by the original package.
+if [ "$(uci -q get firewall.fastnet.src)" = wan ] &&
+	[ "$(uci -q get firewall.fastnet.target)" = ACCEPT ] &&
+	[ "$(uci -q get firewall.fastnet.proto)" = tcp ] &&
+	[ "$(uci -q get firewall.fastnet.dest_port)" = 3200 ] &&
+	[ "$(uci -q get firewall.fastnet.enabled)" != 0 ]; then
+	uci set firewall.fastnet.enabled='0'
+	uci commit firewall
+fi

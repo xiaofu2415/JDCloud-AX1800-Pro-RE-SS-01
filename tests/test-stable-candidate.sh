@@ -30,8 +30,8 @@ grep -Fqx "uci -q set nlbwmon.@nlbwmon[0].commit_interval='5m'" "$defaults" || {
   exit 1
 }
 
-grep -Fqx "0.1.0-rc.2" "$version_file" || {
-  echo "iStore stable candidate must use version 0.1.0-rc.2" >&2
+grep -Fqx "0.1.0-rc.3" "$version_file" || {
+  echo "iStore stable candidate must use version 0.1.0-rc.3" >&2
   exit 1
 }
 

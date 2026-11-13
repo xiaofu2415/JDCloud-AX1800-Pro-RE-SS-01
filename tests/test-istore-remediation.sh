@@ -93,7 +93,7 @@ require_match "$workflow" 'bash \.github/scripts/harden-quickstart-no-docker\.sh
 require_match "$workflow" 'bash \.github/scripts/harden-channel-analysis\.sh openwrt/feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/channel_analysis\.js'
 require_match "$workflow" 'CONFIG_PACKAGE_\$\{package\}=y'
 require_match "$workflow" 'bash \.github/scripts/verify-samba4-acl\.sh openwrt/feeds/luci/applications/luci-app-samba4'
-require_text "$repo_root/versions/istore.version" '0.1.0-rc.2'
+require_text "$repo_root/versions/istore.version" '0.1.0-rc.3'
 
 require_match "$temperature_controller" 're_ss_01_cpu_temperature'
 require_match "$temperature_controller" 're-ss-01-cpu-temperature'

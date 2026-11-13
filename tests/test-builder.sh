@@ -59,7 +59,7 @@ require_text.call("README.md", "https://github.com/xiaofu2415/JDCloud-AX1800-Pro
 end
 require_text.call("README.md", "SECURITY.md", "the SECURITY guide link")
 require_match.call("README.md", /Argon.{0,40}`1\.0\.0`.{0,40}(稳定|stable)/i, "Argon 1.0.0 as stable")
-require_match.call("README.md", /iStore.{0,40}`0\.1\.0-rc\.2`.{0,40}(候选|测试|实验|RC)/i, "iStore 0.1.0-rc.2 as release candidate")
+require_match.call("README.md", /iStore.{0,40}`0\.1\.0-rc\.3`.{0,40}(候选|测试|实验|RC)/i, "iStore 0.1.0-rc.3 as release candidate")
 require_match.call("README.md", /QuickStart.{0,80}(自动改网|自动修改网络).{0,80}(关闭|禁用)/i, "disabled QuickStart automatic network mutation")
 
 require_match.call("docs/VARIANTS.md", /QuickStart.{0,40}(首页|落地页)/i, "QuickStart as the iStore landing page")
@@ -146,10 +146,10 @@ variants = {
   },
   "istore" => {
     "config" => "configs/re-ss-01-istore.config",
-    "version" => "0.1.0-rc.2",
-    "tag" => "re-ss-01-istore-v0.1.0-rc.2",
-    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-rc.2",
-    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-rc.2",
+    "version" => "0.1.0-rc.3",
+    "tag" => "re-ss-01-istore-v0.1.0-rc.3",
+    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-rc.3",
+    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-rc.3",
     "prerelease" => "true"
   }
 }
@@ -173,6 +173,9 @@ common_packages << "# CONFIG_PACKAGE_luci-app-passwall2_Basic_Core_All is not se
 
 istore_only_packages = %w[
   CONFIG_PACKAGE_luci-app-ttyd=y
+  CONFIG_PACKAGE_luci-app-tailscale-community=y
+  CONFIG_PACKAGE_fastnet=y
+  CONFIG_PACKAGE_luci-app-fastnet=y
   CONFIG_PACKAGE_luci-app-store=y
   CONFIG_PACKAGE_quickstart=y
   CONFIG_PACKAGE_luci-app-quickstart=y
@@ -572,6 +575,9 @@ common_required_packages=(
 )
 istore_required_packages=(
   luci-app-ttyd
+  luci-app-tailscale-community
+  fastnet
+  luci-app-fastnet
   luci-app-store
   quickstart
   luci-app-quickstart
@@ -829,8 +835,8 @@ Dir.mktmpdir("release fixtures ") do |root|
   source = fixture.call("source")
   output = File.join(root, "published")
   config = "configs/re-ss-01-istore.config"
-  version = "0.1.0-rc.2"
-  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-rc.2"
+  version = "0.1.0-rc.3"
+  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-rc.3"
   args = ["istore", version, "source-sha", "builder-sha", config]
   # A different working directory must not change which config gets copied.
   Dir.chdir(root) { run.call(true, "prepare", prepare, source, output, *args) }

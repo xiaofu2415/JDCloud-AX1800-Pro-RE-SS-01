@@ -163,6 +163,10 @@ jobs:
       - name: Install RE-SS-01 defaults
         run: cp -a files/. openwrt/files/
 
+      - name: Prepare RE-SS-01 management plugins
+        if: ${{ steps.variant.outputs.variant == 'istore' }}
+        run: bash .github/scripts/prepare-management-plugins.sh openwrt
+
       - name: Load RE-SS-01 configuration
         working-directory: openwrt
         run: |
@@ -218,6 +222,19 @@ jobs:
         with:
           name: ${{ steps.variant.outputs.artifact_name }}
           path: output/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Collect signed management plugin index
+        if: ${{ steps.variant.outputs.variant == 'istore' }}
+        run: bash .github/scripts/collect-management-apks.sh openwrt management-apks
+
+      - name: Upload management APKs
+        if: ${{ steps.variant.outputs.variant == 'istore' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: re-ss-01-istore-management-apks-rc3
+          path: management-apks/
           if-no-files-found: error
           retention-days: 14
 

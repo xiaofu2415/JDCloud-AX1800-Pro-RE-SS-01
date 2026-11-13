@@ -7,12 +7,12 @@
 | 项目 | Argon | iStoreOS Dashboard |
 | --- | --- | --- |
 | 变体标识 | `argon` | `istore` |
-| 当前版本 | `1.0.0` | `0.1.0-rc.2` |
+| 当前版本 | `1.0.0` | `0.1.0-rc.3` |
 | 成熟度 | 已刷入真机并验证可启动的稳定版 | 稳定候选，等待最终真机验收 |
 | 登录落地页 | 标准 LuCI 页面 | QuickStart 首页（默认落地页） |
 | 普通管理页 | Argon 渲染标准 LuCI 页面 | Argon 渲染标准 LuCI 页面 |
 | 恢复主题 | Bootstrap | Bootstrap |
-| 额外组件 | 无 | QuickStart、iStore、Samba、LuCI Web 终端 |
+| 额外组件 | 无 | QuickStart、iStore、Samba、LuCI Web 终端、Tailscale 管理页、FastNet |
 | Release | 正式版，可为 Latest | Prerelease，永不为 Latest |
 | 资源占用 | 稳定基线 | 因增加应用和依赖，预期高于 Argon；须以真机数据确认 |
 
