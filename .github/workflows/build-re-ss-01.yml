@@ -11,6 +11,10 @@ name: Build JDCloud RE-SS-01
         options:
           - argon
           - istore
+      publish_release:
+        description: Publish a GitHub Release (disable for artifact-only validation)
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -18,6 +22,7 @@ permissions:
 env:
   SOURCE_REPOSITORY: https://github.com/LiBwrt/LibWrt.git
   SOURCE_BRANCH: 25.12-nss
+  SOURCE_REVISION: 3431211a1883ec17e276a0a7cdef5ef22157beb1
   DOWNLOAD_CACHE_SCHEMA: go-mod-cache-v2
   TZ: Asia/Taipei
 
@@ -66,9 +71,11 @@ jobs:
       - name: Clone current LibWrt source
         id: source
         run: |
-          git clone --depth 1 --single-branch \
-            --branch "$SOURCE_BRANCH" "$SOURCE_REPOSITORY" openwrt
+          git init openwrt
           cd openwrt
+          git fetch --depth 1 "$SOURCE_REPOSITORY" "$SOURCE_REVISION"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
           echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Align RE-SS-01 factory image
@@ -84,8 +91,21 @@ jobs:
           restore-keys: |
             re-ss-01-${{ env.DOWNLOAD_CACHE_SCHEMA }}-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-
 
+      - name: Pin LuCI feed to device baseline
+        run: |
+          sed -i 's|^src-git luci https://github.com/immortalwrt/luci.git;openwrt-25.12$|src-git luci https://github.com/immortalwrt/luci.git^d6167ea0645cbd1327708d85f94824f42d0eb872|' openwrt/feeds.conf.default
+          grep -Fx 'src-git luci https://github.com/immortalwrt/luci.git^d6167ea0645cbd1327708d85f94824f42d0eb872' openwrt/feeds.conf.default
+
       - name: Add requested package feeds
         run: bash .github/scripts/add-package-feeds.sh openwrt/feeds.conf.default "${{ steps.variant.outputs.variant }}"
+
+      - name: Install odhcpd warning rate limit patch
+        run: |
+          pkg=openwrt/package/network/services/odhcpd
+          grep -qx 'PKG_SOURCE_VERSION:=5d7be43f8b9dec0eb47e245cfab81108bb131273' "$pkg/Makefile"
+          grep -qx 'PKG_RELEASE:=1' "$pkg/Makefile"
+          sed -i 's/^PKG_RELEASE:=1$/PKG_RELEASE:=2/' "$pkg/Makefile"
+          install -D -m 0644 patches/odhcpd/950-limit-missing-prefix-warning.patch "$pkg/patches/950-limit-missing-prefix-warning.patch"
 
       - name: Install feeds
         working-directory: openwrt
@@ -189,6 +209,7 @@ jobs:
           retention-days: 14
 
       - name: Publish GitHub release
+        if: ${{ inputs.publish_release }}
         env:
           GH_TOKEN: ${{ github.token }}
           VARIANT: ${{ steps.variant.outputs.variant }}

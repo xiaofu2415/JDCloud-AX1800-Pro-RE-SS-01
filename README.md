@@ -9,9 +9,9 @@
 | 变体 | 产品版本 | 状态 | 登录后的页面 | 发布策略 |
 | --- | --- | --- | --- | --- |
 | Argon | `1.0.0` | 稳定版 | 标准 LuCI 页面使用 Argon | 正式发布，可设为 GitHub Latest |
-| iStoreOS Dashboard | `0.1.0-rc.1` | 稳定候选版 | QuickStart 首页；其他 LuCI 页面使用 Argon | Prerelease，验收通过后再转正式版 |
+| iStoreOS Dashboard | `0.1.0-rc.2` | 稳定候选版 | QuickStart 首页；其他 LuCI 页面使用 Argon | Prerelease，验收通过后再转正式版 |
 
-Argon 仍是稳定推荐，直到 iStore beta/RC 完成真机硬件验证；`0.1.0-rc.1` 完成验收后才能替代当前 Argon 稳定版。
+Argon 仍是稳定推荐，直到 iStore beta/RC 完成真机硬件验证；`0.1.0-rc.2` 完成验收后才能替代当前 Argon 稳定版。
 
 iStore 可以显示软件列表，但其中单个应用不保证兼容 LibWrt 25.12 或 RE-SS-01。构建成功也不等于真机兼容；beta 必须完成物理设备验收后才能合并到 `main`。
 

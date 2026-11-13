@@ -1,0 +1,40 @@
+Limit repeated warnings when a default route exists without a public prefix.
+Keep the first warning and repeat it at most once per 15 minutes per
+interface during an uninterrupted episode. Keep the RA policy unchanged.
+
+--- a/src/odhcpd.h
++++ b/src/odhcpd.h
+@@ -371,6 +371,7 @@
+ 	// RA runtime data
+ 	struct odhcpd_event router_event;
+ 	struct uloop_timeout timer_rs;
++	time_t missing_public_prefix_warn_after;
+ 	uint32_t ra_sent;
+ 
+ 	// DHCPv6 runtime data
+--- a/src/router.c
++++ b/src/router.c
+@@ -878,13 +878,19 @@
+ 	if (default_route && valid_prefix) {
+ 		adv.h.nd_ra_router_lifetime = htons(ra_lifetime < UINT16_MAX ? ra_lifetime : UINT16_MAX);
++		iface->missing_public_prefix_warn_after = 0;
+ 	} else {
+ 		adv.h.nd_ra_router_lifetime = 0;
+ 
+-		if (default_route)
+-			warn("A default route is present but there is no public prefix "
+-			     "on %s thus we announce no default route by setting ra_lifetime to 0!", iface->name);
+-		else
++		if (default_route) {
++			if (now >= iface->missing_public_prefix_warn_after) {
++				warn("A default route is present but there is no public prefix "
++				     "on %s thus we announce no default route by setting ra_lifetime to 0!", iface->name);
++				iface->missing_public_prefix_warn_after = now + 900;
++			}
++		} else {
++			iface->missing_public_prefix_warn_after = 0;
+ 			warn("No default route present, setting ra_lifetime to 0!");
++		}
+ 	}
+ 
+ 	debug("Using a RA lifetime of %d seconds on %s", ntohs(adv.h.nd_ra_router_lifetime), iface->name);

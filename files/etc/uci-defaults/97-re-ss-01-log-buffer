@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Retain more diagnostic history in RAM without writing logs to eMMC.
+case "$(uci -q get system.@system[0].log_size)" in
+	''|128)
+		uci -q set system.@system[0].log_size='512' || exit 1
+		uci -q commit system || exit 1
+		;;
+esac
+
+exit 0
