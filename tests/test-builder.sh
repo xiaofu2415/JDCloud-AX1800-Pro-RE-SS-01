@@ -308,11 +308,13 @@ abort "QuickStart must be hardened after feed installation and before firmware d
   steps.index(step_named.call("Install feeds")) < steps.index(hardening) &&
   steps.index(hardening) < steps.index(step_named.call("Install RE-SS-01 defaults"))
 
-xray_pin = step_named.call("Pin Xray core tunnel UDP fix")
-abort "Xray pinning must target the feed package Makefile" unless xray_pin["run"] == 'bash .github/scripts/pin-xray-core.sh openwrt/feeds/packages/net/xray-core/Makefile'
-abort "Xray pinning must run after feed installation and before configuration" unless
-  steps.index(step_named.call("Install feeds")) < steps.index(xray_pin) &&
-  steps.index(xray_pin) < steps.index(load_config)
+xray_check = step_named.call("Verify Xray 26.10.21 and Go 1.27 recipes")
+abort "Xray verification must target the pinned packages feed" unless
+  xray_check["run"].include?('test "$(git -C openwrt/feeds/packages rev-parse HEAD)" = "$PACKAGES_REVISION"') &&
+  xray_check["run"].include?('bash .github/scripts/verify-xray-core.sh openwrt/feeds/packages')
+abort "Xray verification must run after feed installation and before configuration" unless
+  steps.index(step_named.call("Install feeds")) < steps.index(xray_check) &&
+  steps.index(xray_check) < steps.index(load_config)
 
 prepare = step_named.call("Prepare RE-SS-01 release")
 verify = step_named.call("Verify RE-SS-01 release")

@@ -41,7 +41,7 @@ require_match() {
 normalize="$repo_root/files/usr/libexec/re-ss-01-normalize-apk-feeds"
 passwall_hardener="$repo_root/.github/scripts/harden-passwall2-xray.sh"
 passwall_shunt_hardener="$repo_root/.github/scripts/harden-passwall2-shunt-defaults.sh"
-xray_pinner="$repo_root/.github/scripts/pin-xray-core.sh"
+xray_verifier="$repo_root/.github/scripts/verify-xray-core.sh"
 quickstart_ui_hardener="$repo_root/.github/scripts/harden-quickstart-status-ui.sh"
 quickstart_docker_hardener="$repo_root/.github/scripts/harden-quickstart-no-docker.sh"
 channel_hardener="$repo_root/.github/scripts/harden-channel-analysis.sh"
@@ -59,7 +59,7 @@ required_packages="$repo_root/.github/scripts/required-packages.sh"
 require_executable "$normalize"
 require_executable "$passwall_hardener"
 require_executable "$passwall_shunt_hardener"
-require_executable "$xray_pinner"
+require_executable "$xray_verifier"
 require_executable "$quickstart_ui_hardener"
 require_executable "$quickstart_docker_hardener"
 require_executable "$channel_hardener"
@@ -87,7 +87,7 @@ for variant_config in "$repo_root/configs/re-ss-01-argon.config" "$repo_root/con
 done
 require_match "$workflow" 'bash \.github/scripts/harden-passwall2-xray\.sh openwrt/feeds/passwall2/luci-app-passwall2'
 require_match "$workflow" 'bash \.github/scripts/harden-passwall2-shunt-defaults\.sh openwrt/feeds/passwall2/luci-app-passwall2/root/usr/share/passwall2/0_default_config'
-require_match "$workflow" 'bash \.github/scripts/pin-xray-core\.sh openwrt/feeds/packages/net/xray-core/Makefile'
+require_match "$workflow" 'bash \.github/scripts/verify-xray-core\.sh openwrt/feeds/packages'
 require_match "$workflow" 'bash \.github/scripts/harden-quickstart-status-ui\.sh openwrt/feeds/nas_luci/luci/luci-app-quickstart'
 require_match "$workflow" 'bash \.github/scripts/harden-quickstart-no-docker\.sh openwrt/feeds/nas_luci/luci/luci-app-quickstart/luasrc/view/quickstart/main\.htm'
 require_match "$workflow" 'bash \.github/scripts/harden-channel-analysis\.sh openwrt/feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/channel_analysis\.js'
@@ -186,47 +186,35 @@ if "$passwall_hardener" "$unknown_passwall" >/dev/null 2>&1; then
 fi
 diff -u "$temporary/unknown-passwall-before.list" "$unknown_passwall/root/usr/share/passwall2/utils.sh"
 
-xray_feed="$temporary/xray-core"
-mkdir -p "$xray_feed/patches"
-xray_makefile="$xray_feed/Makefile"
+xray_feed="$temporary/packages"
+mkdir -p "$xray_feed/net/xray-core" "$xray_feed/lang/golang/golang1.27"
+xray_makefile="$xray_feed/net/xray-core/Makefile"
 cat > "$xray_makefile" <<'EOF'
 PKG_NAME:=xray-core
-PKG_VERSION:=26.3.27
+PKG_VERSION:=26.10.21
 PKG_RELEASE:=1
 PKG_SOURCE_URL:=https://codeload.github.com/XTLS/Xray-core/tar.gz/v$(PKG_VERSION)?
-PKG_HASH:=992a4997e6bb846d11469435d687f99ef812fcde1e0a009bb8e95189ea20331d
-PKG_BUILD_DEPENDS:=golang/host
+PKG_HASH:=44ef4874529a03848c90f1fdcfb763350fbc5f1de741ec90e0024d651df25650
+PKG_BUILD_DEPENDS:=golang1.27/host
 EOF
+go_makefile="$xray_feed/lang/golang/golang1.27/Makefile"
+printf '%s\n' 'PKG_NAME:=golang1.27' 'GO_VERSION_MAJOR_MINOR:=1.27' > "$go_makefile"
 cp "$xray_makefile" "$temporary/xray-before.mk"
-"$xray_pinner" "$xray_makefile"
-grep -Fqx 'PKG_VERSION:=26.9.9' "$xray_makefile"
-grep -Fqx 'PKG_HASH:=efb871a981690688191433a76beef7afdab6750d53cc1775cf8e9e995730ef22' "$xray_makefile"
-grep -Fqx 'PKG_BUILD_DEPENDS:=golang/host' "$xray_makefile"
-xray_patch="$xray_feed/patches/100-go-1.26-compat.patch"
-grep -Fqx -- '-go 1.27' "$xray_patch"
-grep -Fqx -- '+go 1.26' "$xray_patch"
-cp "$xray_makefile" "$temporary/xray-after-once.mk"
-cp "$xray_patch" "$temporary/xray-patch-after-once"
-"$xray_pinner" "$xray_makefile"
-diff -u "$temporary/xray-after-once.mk" "$xray_makefile"
-diff -u "$temporary/xray-patch-after-once" "$xray_patch"
+"$xray_verifier" "$xray_feed"
+diff -u "$temporary/xray-before.mk" "$xray_makefile"
+test ! -e "$xray_feed/net/xray-core/patches/100-go-1.26-compat.patch"
 
-unknown_xray="$temporary/unknown-xray"
-mkdir -p "$unknown_xray/patches"
-printf '%s\n' \
-  'PKG_NAME:=xray-core' \
-  'PKG_VERSION:=26.3.28' \
-  'PKG_RELEASE:=1' \
-  'PKG_SOURCE_URL:=https://example.invalid/xray' \
-  'PKG_HASH:=unknown' \
-  'PKG_BUILD_DEPENDS:=golang/host' \
-  > "$unknown_xray/Makefile"
-cp "$unknown_xray/Makefile" "$temporary/unknown-xray-before.mk"
-if "$xray_pinner" "$unknown_xray/Makefile" >/dev/null 2>&1; then
-  echo "Xray pinner must reject an unknown upstream package Makefile" >&2
+sed 's|PKG_BUILD_DEPENDS:=golang1.27/host|PKG_BUILD_DEPENDS:=golang/host|' "$temporary/xray-before.mk" > "$xray_makefile"
+if "$xray_verifier" "$xray_feed" >/dev/null 2>&1; then
+  echo "Xray 26.10.21 must reject the old Go dependency" >&2
   exit 1
 fi
-diff -u "$temporary/unknown-xray-before.mk" "$unknown_xray/Makefile"
+cp "$temporary/xray-before.mk" "$xray_makefile"
+mv "$go_makefile" "$temporary/go-missing.mk"
+if "$xray_verifier" "$xray_feed" >/dev/null 2>&1; then
+  echo "Xray 26.10.21 must reject a missing Go 1.27 toolchain" >&2
+  exit 1
+fi
 
 ttyd_root="$temporary/ttyd-root"
 mkdir -p "$ttyd_root/etc/init.d" "$ttyd_root/tmp"

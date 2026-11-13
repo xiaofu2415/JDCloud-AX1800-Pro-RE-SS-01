@@ -23,6 +23,7 @@ env:
   SOURCE_REPOSITORY: https://github.com/LiBwrt/LibWrt.git
   SOURCE_BRANCH: 25.12-nss
   SOURCE_REVISION: 3431211a1883ec17e276a0a7cdef5ef22157beb1
+  PACKAGES_REVISION: fa25995d74a720c1c98bf6265d3dd8b4eb620d1f
   DOWNLOAD_CACHE_SCHEMA: go-mod-cache-v2
   TZ: Asia/Taipei
 
@@ -91,10 +92,12 @@ jobs:
           restore-keys: |
             re-ss-01-${{ env.DOWNLOAD_CACHE_SCHEMA }}-${{ runner.os }}-${{ env.SOURCE_BRANCH }}-${{ steps.variant.outputs.variant }}-
 
-      - name: Pin LuCI feed to device baseline
+      - name: Pin LuCI and packages feeds
         run: |
           sed -i 's|^src-git luci https://github.com/immortalwrt/luci.git;openwrt-25.12$|src-git luci https://github.com/immortalwrt/luci.git^d6167ea0645cbd1327708d85f94824f42d0eb872|' openwrt/feeds.conf.default
           grep -Fx 'src-git luci https://github.com/immortalwrt/luci.git^d6167ea0645cbd1327708d85f94824f42d0eb872' openwrt/feeds.conf.default
+          sed -i "s|^src-git packages https://github.com/immortalwrt/packages.git;openwrt-25.12$|src-git packages https://github.com/immortalwrt/packages.git^${PACKAGES_REVISION}|" openwrt/feeds.conf.default
+          grep -Fx "src-git packages https://github.com/immortalwrt/packages.git^${PACKAGES_REVISION}" openwrt/feeds.conf.default
 
       - name: Add requested package feeds
         run: bash .github/scripts/add-package-feeds.sh openwrt/feeds.conf.default "${{ steps.variant.outputs.variant }}"
@@ -119,8 +122,10 @@ jobs:
           fi
           ./scripts/feeds install -a
 
-      - name: Pin Xray core tunnel UDP fix
-        run: bash .github/scripts/pin-xray-core.sh openwrt/feeds/packages/net/xray-core/Makefile
+      - name: Verify Xray 26.10.21 and Go 1.27 recipes
+        run: |
+          test "$(git -C openwrt/feeds/packages rev-parse HEAD)" = "$PACKAGES_REVISION"
+          bash .github/scripts/verify-xray-core.sh openwrt/feeds/packages
 
       - name: Harden PassWall2 Xray runtime link
         run: bash .github/scripts/harden-passwall2-xray.sh openwrt/feeds/passwall2/luci-app-passwall2
@@ -199,6 +204,14 @@ jobs:
 
       - name: Verify RE-SS-01 release
         run: bash .github/scripts/verify-release.sh output "${{ steps.variant.outputs.variant }}" "${{ steps.variant.outputs.version }}"
+
+      - name: Verify packaged Xray version
+        run: |
+          awk '$1 == "xray-core" { count++; version = ($2 == "-" ? $3 : $2); if (version !~ /^26[.]10[.]21-r[0-9]+$/) bad = 1 }
+               END { exit !(count == 1 && !bad) }' output/*.manifest || {
+            echo "Expected exactly one xray-core 26.10.21 package in the firmware manifest" >&2
+            exit 1
+          }
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4

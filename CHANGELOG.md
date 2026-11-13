@@ -6,7 +6,8 @@
 
 - 限制 LAN 缺公网 IPv6 前缀时的重复告警：首次仍立即记录，持续期间每接口最多每 15 分钟记录一次；保留 RA 生命周期为 0 的行为，不改现场 IPv6 配置。
 - 将默认内存日志缓冲由 128 KiB 提高到 512 KiB；保留其他自定义值，不增加 eMMC 日志写入。
-- 固定 LibWrt 和 LuCI 到本次真机基线。其他软件源仍沿用现有构建方式；刷入后需复测 WAN6、IPv6 RA、PassWall2、Tailscale、存储与 swap。
+- 固定 LibWrt 和 LuCI 到本次真机基线，固定 ImmortalWrt packages 软件源到已核对的提交。使用上游 Xray 26.10.21 配方和 Go 1.27 构建，不再改写 Xray 的 Go 版本；上传前核对固件清单里的 Xray 版本。
+- 刷入后需复测 WAN6、IPv6 RA、PassWall2（含 Reality、Hysteria2 和 DNS）、Tailscale、存储与 swap。
 
 ## 0.1.0-rc.1
 
