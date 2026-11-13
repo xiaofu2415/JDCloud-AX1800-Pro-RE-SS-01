@@ -655,8 +655,8 @@ common_feed_lines=(
 )
 istore_feed_lines=(
   'src-git istore https://github.com/linkease/istore.git;main'
-  'src-git nas https://github.com/linkease/nas-packages.git;master'
-  'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main'
+  'src-git nas https://github.com/linkease/nas-packages.git^eccb7386ec14d2af36e9643f8f6118dc92ac702a'
+  'src-git nas_luci https://github.com/linkease/nas-packages-luci.git^7eac499c8983d814c36dc87785aabfc630c66716'
 )
 
 assert_exact_istore_feeds() {

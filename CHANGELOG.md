@@ -8,6 +8,7 @@
 - 将默认内存日志缓冲由 128 KiB 提高到 512 KiB；保留其他自定义值，不增加 eMMC 日志写入。
 - 固定 LibWrt 和 LuCI 到本次真机基线，固定 ImmortalWrt packages 软件源到已核对的提交。使用上游 Xray 26.10.21 配方和 Go 1.27 构建，不再改写 Xray 的 Go 版本；上传前核对固件清单里的 Xray 版本。
 - 刷入后需复测 WAN6、IPv6 RA、PassWall2（含 Reality、Hysteria2 和 DNS）、Tailscale、存储与 swap。
+- 固定 QuickStart 后端和 LuCI 软件源到已核对的提交，保留关闭自动改网、隐藏 Docker 和首页状态兼容三项补丁。
 
 ## 0.1.0-rc.1
 

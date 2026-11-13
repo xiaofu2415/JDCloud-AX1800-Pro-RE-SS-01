@@ -34,7 +34,9 @@ add_exact_feed() {
   local name="$1"
   local url="$2"
   local branch="$3"
-  local line="src-git ${name} ${url};${branch}"
+  local revision_separator=';'
+  [[ "$branch" =~ ^[0-9a-f]{40}$ ]] && revision_separator='^'
+  local line="src-git ${name} ${url}${revision_separator}${branch}"
   local exact_count
   local name_count
   local original_mode
@@ -60,6 +62,6 @@ add_feed mosdns https://github.com/sbwml/luci-app-mosdns.git v5
 
 if [[ "$variant" == "istore" ]]; then
   add_exact_feed istore https://github.com/linkease/istore.git main
-  add_exact_feed nas https://github.com/linkease/nas-packages.git master
-  add_exact_feed nas_luci https://github.com/linkease/nas-packages-luci.git main
+  add_exact_feed nas https://github.com/linkease/nas-packages.git eccb7386ec14d2af36e9643f8f6118dc92ac702a
+  add_exact_feed nas_luci https://github.com/linkease/nas-packages-luci.git 7eac499c8983d814c36dc87785aabfc630c66716
 fi
