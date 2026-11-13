@@ -93,7 +93,7 @@ require_match "$workflow" 'bash \.github/scripts/harden-quickstart-no-docker\.sh
 require_match "$workflow" 'bash \.github/scripts/harden-channel-analysis\.sh openwrt/feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/channel_analysis\.js'
 require_match "$workflow" 'CONFIG_PACKAGE_\$\{package\}=y'
 require_match "$workflow" 'bash \.github/scripts/verify-samba4-acl\.sh openwrt/feeds/luci/applications/luci-app-samba4'
-require_text "$repo_root/versions/istore.version" '0.1.0-rc.3'
+require_text "$repo_root/versions/istore.version" '0.1.0-rc.4'
 
 require_match "$temperature_controller" 're_ss_01_cpu_temperature'
 require_match "$temperature_controller" 're-ss-01-cpu-temperature'
@@ -246,15 +246,10 @@ quickstart_template="$quickstart_feed/luasrc/view/quickstart/main.htm"
 cp "$repo_root/tests/fixtures/quickstart/main.htm" "$quickstart_template"
 cp "$quickstart_template" "$temporary/quickstart-before.htm"
 "$quickstart_ui_hardener" "$quickstart_feed"
-grep -Fq 'RE-SS-01 兼容提示' "$quickstart_template"
-grep -Fq '/cgi-bin/luci/admin/status/overview' "$quickstart_template"
-grep -Fq '/cgi-bin/luci/admin/system/mounts' "$quickstart_template"
 grep -Fq '/luci-static/re-ss-01/quickstart-temperature.js' "$quickstart_template"
-notice_block="$(grep -A2 -B0 'RE-SS-01 兼容提示' "$quickstart_template")"
-if grep -Eq 'https?://|<script' <<< "$notice_block"; then
-  echo "QuickStart compatibility notice must not add external scripts" >&2
-  exit 1
-fi
+# The only template addition is the temperature adapter; there is no banner
+# or empty notice wrapper above the dashboard.
+diff -u "$temporary/quickstart-before.htm" <(grep -Fv '/luci-static/re-ss-01/quickstart-temperature.js' "$quickstart_template")
 cp "$quickstart_template" "$temporary/quickstart-after-once.htm"
 "$quickstart_ui_hardener" "$quickstart_feed"
 diff -u "$temporary/quickstart-after-once.htm" "$quickstart_template"
@@ -278,14 +273,18 @@ cp "$repo_root/tests/fixtures/quickstart/main.htm" "$quickstart_combined/luasrc/
 combined_template="$quickstart_combined/luasrc/view/quickstart/main.htm"
 "$quickstart_docker_hardener" "$combined_template"
 "$quickstart_ui_hardener" "$quickstart_combined"
-if grep -Fq 'dockerd' "$combined_template" || ! grep -Fq 'RE-SS-01 兼容提示' "$combined_template"; then
-  echo "QuickStart combined hardening must remove Docker and keep the compatibility notice" >&2
+if grep -Eq 'dockerd|RE-SS-01 兼容提示|CPU/Wi-Fi 温度以' "$combined_template" ||
+  ! grep -Fq '/luci-static/re-ss-01/quickstart-temperature.js' "$combined_template"; then
+  echo "QuickStart must hide both notices and Docker, while keeping temperature support" >&2
   exit 1
 fi
 cp "$combined_template" "$temporary/quickstart-combined-after-once.htm"
 "$quickstart_docker_hardener" "$combined_template"
 "$quickstart_ui_hardener" "$quickstart_combined"
 diff -u "$temporary/quickstart-combined-after-once.htm" "$combined_template"
+diff -u "$temporary/quickstart-no-docker-after-once.htm" <(grep -Fv '/luci-static/re-ss-01/quickstart-temperature.js' "$combined_template")
+"$quickstart_docker_hardener" "$quickstart_template"
+diff -u "$combined_template" "$quickstart_template"
 
 unknown_quickstart_no_docker="$temporary/unknown-quickstart-no-docker.htm"
 cp "$repo_root/tests/fixtures/quickstart/main.htm" "$unknown_quickstart_no_docker"

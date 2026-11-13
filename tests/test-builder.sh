@@ -17,6 +17,8 @@ bash "$repo_root/tests/test-passwall2-policy.sh"
 
 bash "$repo_root/tests/test-stable-candidate.sh"
 
+bash "$repo_root/tests/test-tailscale-autostart.sh"
+
 ruby - "$repo_root" <<'RUBY'
 repo = ARGV.fetch(0)
 paths = %w[
@@ -59,7 +61,7 @@ require_text.call("README.md", "https://github.com/xiaofu2415/JDCloud-AX1800-Pro
 end
 require_text.call("README.md", "SECURITY.md", "the SECURITY guide link")
 require_match.call("README.md", /Argon.{0,40}`1\.0\.0`.{0,40}(稳定|stable)/i, "Argon 1.0.0 as stable")
-require_match.call("README.md", /iStore.{0,40}`0\.1\.0-rc\.3`.{0,40}(候选|测试|实验|RC)/i, "iStore 0.1.0-rc.3 as release candidate")
+require_match.call("README.md", /iStore.{0,40}`0\.1\.0-rc\.4`.{0,40}(候选|测试|实验|RC)/i, "iStore 0.1.0-rc.4 as release candidate")
 require_match.call("README.md", /QuickStart.{0,80}(自动改网|自动修改网络).{0,80}(关闭|禁用)/i, "disabled QuickStart automatic network mutation")
 
 require_match.call("docs/VARIANTS.md", /QuickStart.{0,40}(首页|落地页)/i, "QuickStart as the iStore landing page")
@@ -146,10 +148,10 @@ variants = {
   },
   "istore" => {
     "config" => "configs/re-ss-01-istore.config",
-    "version" => "0.1.0-rc.3",
-    "tag" => "re-ss-01-istore-v0.1.0-rc.3",
-    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-rc.3",
-    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-rc.3",
+    "version" => "0.1.0-rc.4",
+    "tag" => "re-ss-01-istore-v0.1.0-rc.4",
+    "artifact_name" => "jdcloud-re-ss-01-libwrt-istore-v0.1.0-rc.4",
+    "release_title" => "京东云 AX1800 PRO（RE-SS-01）· iStoreOS Dashboard v0.1.0-rc.4",
     "prerelease" => "true"
   }
 }
@@ -464,7 +466,7 @@ assert_first_boot_policy() {
   executable_text="$(sed -E '/^[[:space:]]*$/d; /^[[:space:]]*#[^!]/d; s/[[:space:]]+#.*$//' "$policy_file")"
   expected_executable="$(cat <<'EOF'
 #!/bin/sh
-for service in passwall2 mosdns adguardhome tailscale sqm samba4; do
+for service in passwall2 mosdns adguardhome sqm samba4; do
 	[ -x "/etc/init.d/$service" ] && /etc/init.d/$service disable
 done
 uci -q set passwall2.@global[0].enabled='0'
@@ -536,6 +538,7 @@ fi
 echo "first-boot policy mutation rejected: after-line-240"
 
 assert_policy_rejects_mutation service-enable '/etc/init.d/sqm enable'
+assert_policy_rejects_mutation tailscale-disable '/etc/init.d/tailscale disable'
 assert_policy_rejects_mutation nlbwmon-disable '/etc/init.d/nlbwmon disable'
 assert_policy_rejects_mutation wrong-generations "uci -q set nlbwmon.@nlbwmon[0].database_generations='10'"
 assert_policy_rejects_mutation firewall-uci 'uci -q set firewall.safe=1'
@@ -835,8 +838,8 @@ Dir.mktmpdir("release fixtures ") do |root|
   source = fixture.call("source")
   output = File.join(root, "published")
   config = "configs/re-ss-01-istore.config"
-  version = "0.1.0-rc.3"
-  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-rc.3"
+  version = "0.1.0-rc.4"
+  prefix = "jdcloud-re-ss-01-libwrt-istore-v0.1.0-rc.4"
   args = ["istore", version, "source-sha", "builder-sha", config]
   # A different working directory must not change which config gets copied.
   Dir.chdir(root) { run.call(true, "prepare", prepare, source, output, *args) }

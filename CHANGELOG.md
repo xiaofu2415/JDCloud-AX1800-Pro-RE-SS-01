@@ -2,6 +2,11 @@
 
 本文件按产品版本记录用户可见变化。Argon 与 iStoreOS Dashboard 使用独立版本线。
 
+## 0.1.0-rc.4
+
+- 保留配置升级时，沿用 LibWrt 备份记录的 Tailscale 开机自启选择：已启用的继续启用，原先禁用的保持禁用。全新安装或不保留配置升级时，默认关闭自启。
+- 移除 QuickStart 首页顶部的两条兼容提示，保留 CPU 温度适配、RC3 的 Tailscale 与 FastNet 菜单，以及实际的软件源错误提示。
+
 ## 0.1.0-rc.3
 
 - iStore 版预装 Tailscale 和 FastNet 的 LuCI 管理入口，并在构建和固件清单中检查两个界面及 FastNet 本体。

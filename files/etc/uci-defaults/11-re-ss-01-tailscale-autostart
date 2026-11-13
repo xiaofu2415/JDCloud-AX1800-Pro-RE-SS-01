@@ -1,0 +1,13 @@
+#!/bin/sh
+
+root="${IPKG_INSTROOT:-}"
+
+# A retained sysupgrade backup restores this script even if every service
+# was enabled. It runs before us and disables just the previously disabled
+# services. Leave its Tailscale choice intact on supported upgrades.
+[ ! -f "$root/etc/uci-defaults/10_disable_services" ] || exit 0
+
+# With no restored service policy, apply the clean-install default.
+if [ -x "$root/etc/init.d/tailscale" ]; then
+	"$root/etc/init.d/tailscale" disable
+fi

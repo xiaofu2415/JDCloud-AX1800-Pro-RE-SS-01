@@ -17,5 +17,5 @@ cd "$output"
 apk="$openwrt/staging_dir/host/bin/apk"
 "$apk" mkndx --root "$openwrt" --keys-dir "$openwrt" --allow-untrusted \
   --sign "$openwrt/private-key.pem" --output packages.adb ./*.apk
-cp "$openwrt/public-key.pem" ./re-ss-01-rc3-plugin-build.pem
-sha256sum ./*.apk packages.adb re-ss-01-rc3-plugin-build.pem > SHA256SUMS
+cp "$openwrt/public-key.pem" ./re-ss-01-plugin-build.pem
+sha256sum ./*.apk packages.adb re-ss-01-plugin-build.pem > SHA256SUMS

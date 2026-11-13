@@ -233,7 +233,7 @@ jobs:
         if: ${{ steps.variant.outputs.variant == 'istore' }}
         uses: actions/upload-artifact@v4
         with:
-          name: re-ss-01-istore-management-apks-rc3
+          name: ${{ steps.variant.outputs.artifact_name }}-management-apks
           path: management-apks/
           if-no-files-found: error
           retention-days: 14

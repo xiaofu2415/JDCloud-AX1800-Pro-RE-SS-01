@@ -9,8 +9,8 @@ template="${1:?usage: harden-quickstart-no-docker.sh QUICKSTART_MAIN_TEMPLATE}"
 
 expected_original_sha='806d968acb47afadc44f2bcb2c482f7149763a03f83934dc7323a9b95ae85fc2'
 expected_patched_sha='8884c0eddd49ae97aff62f7831b98ac4f4030c41de40d6f60c092b9676d54ccc'
-expected_status_sha='2f981947da9fb53f16fb634edb4176c837a7572bd68be750b098d8d0b7d7ae3f'
-expected_combined_sha='fb27306b284aba2d2434ddd25f194cec18e63cfc46420e4e70e5c160f1e970af'
+expected_status_sha='267256b0230086778e881df808516876ca9724224485bbcaf2665136647cccf6'
+expected_combined_sha='1562ec975ea886c929e9234f99be6b975f709a400462135e28562e7de2e7f05c'
 current_sha="$(sha256sum "$template" | awk '{print $1}')"
 if [[ "$current_sha" == "$expected_patched_sha" || "$current_sha" == "$expected_combined_sha" ]]; then
   ! grep -Fq 'dockerd' "$template"
